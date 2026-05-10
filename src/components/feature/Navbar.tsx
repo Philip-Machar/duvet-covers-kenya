@@ -52,7 +52,7 @@ export default function Navbar() {
       <header className="relative z-50">
         {/* Main Navbar */}
         <nav className="bg-white border-b border-gray-100">
-          <div className="flex items-center justify-between px-4 md:px-6 lg:px-10 py-3">
+          <div className="flex items-center justify-between px-3 md:px-6 lg:px-10 py-3">
             {/* Logo */}
             <a href="/" className="flex items-center gap-2 flex-shrink-0">
               <div className="w-8 h-8 flex items-center justify-center">
@@ -77,7 +77,7 @@ export default function Navbar() {
             </div>
 
             {/* Right Actions */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 md:gap-3">
               {/* Search */}
               <button
                 type="button"
