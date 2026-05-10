@@ -1,0 +1,4080 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+eslint-rules/
+  route-element-jsx.js
+src/
+  components/
+    base/
+      ProductCard.tsx
+    feature/
+      AppliancesSection.tsx
+      CartProvider.tsx
+      CollectionsSection.tsx
+      DiscoverMore.tsx
+      FeaturedProduct.tsx
+      Footer.tsx
+      HeroSection.tsx
+      KitchenBanner.tsx
+      MarqueeSection.tsx
+      Navbar.tsx
+      OffersSection.tsx
+      TopBar.tsx
+      TrendingSection.tsx
+  hooks/
+    useCart.ts
+  i18n/
+    local/
+      index.ts
+    index.ts
+  mocks/
+    allProducts.ts
+    homeData.ts
+  pages/
+    cart/
+      page.tsx
+    collections/
+      page.tsx
+    contact/
+      page.tsx
+    home/
+      page.tsx
+    offers/
+      page.tsx
+    products/
+      list/
+        page.tsx
+      page.tsx
+    NotFound.tsx
+  router/
+    config.tsx
+    index.ts
+  App.tsx
+  index.css
+  main.tsx
+auto-imports.d.ts
+eslint.config.ts
+index.html
+package.json
+postcss.config.ts
+project_plan.md
+tailwind.config.ts
+tsconfig.app.json
+tsconfig.json
+tsconfig.node.json
+vite-env.d.ts
+vite.config.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="eslint-rules/route-element-jsx.js">
+/**
+ * Enforce that React Router route `element` values are JSX, not component references.
+ *
+ * Example (good):
+ *   { path: "/x", element: <Page /> }
+ *
+ * Example (bad):
+ *   { path: "/x", element: Page }
+ */
+export default {
+  rules: {
+    'route-element-jsx': {
+      meta: {
+        type: 'problem',
+        docs: {
+          description:
+            'Require RouteObject.element to be JSX (e.g. <Comp />), not a component reference.',
+        },
+        schema: [],
+        messages: {
+          mustBeJsx:
+            '`element` must be JSX (e.g. `<{{name}} />`). You likely meant to render the component, not pass it.',
+        },
+      },
+      create(context) {
+        const sourceCode = context.sourceCode
+
+        function getKeyName(key) {
+          if (!key) return null
+          if (key.type === 'Identifier') return key.name
+          if (key.type === 'Literal') return String(key.value)
+          return null
+        }
+
+        function isJsxLike(node) {
+          if (!node) return false
+          switch (node.type) {
+            case 'JSXElement':
+            case 'JSXFragment':
+              return true
+            case 'Literal':
+              // allow null for "no element"
+              return node.value === null
+            case 'ConditionalExpression':
+              return isJsxLike(node.consequent) && isJsxLike(node.alternate)
+            case 'LogicalExpression':
+              // e.g. condition && <Comp />
+              return isJsxLike(node.right)
+            case 'CallExpression': {
+              // allow React.createElement(...)
+              const callee = node.callee
+              return (
+                callee?.type === 'MemberExpression' &&
+                callee.object?.type === 'Identifier' &&
+                callee.object.name === 'React' &&
+                callee.property?.type === 'Identifier' &&
+                callee.property.name === 'createElement'
+              )
+            }
+            default:
+              return false
+          }
+        }
+
+        function getSuggestedName(node) {
+          if (!node) return 'Component'
+          if (node.type === 'Identifier') return node.name
+          if (node.type === 'MemberExpression') {
+            return sourceCode.getText(node)
+          }
+          return 'Component'
+        }
+
+        return {
+          Property(node) {
+            const keyName = getKeyName(node.key)
+            if (keyName !== 'element') return
+            if (node.computed) return
+
+            // Only report when it's clearly not JSX-like (to avoid false positives).
+            if (isJsxLike(node.value)) return
+
+            // Common "wrong" pattern: Identifier / MemberExpression / LazyExoticComponent variable, etc.
+            const suggested = getSuggestedName(node.value)
+            context.report({
+              node: node.value,
+              messageId: 'mustBeJsx',
+              data: { name: suggested },
+            })
+          },
+        }
+      },
+    },
+  },
+}
+</file>
+
+<file path="src/components/base/ProductCard.tsx">
+import type { Product } from '@/mocks/homeData';
+
+interface ProductCardProps {
+  product: Product;
+  onAddToCart?: (product: Product) => void;
+}
+
+export default function ProductCard({ product, onAddToCart }: ProductCardProps) {
+  return (
+    <div className="group bg-white rounded-lg border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
+      {/* Image */}
+      <div className="relative aspect-square overflow-hidden bg-gray-50">
+        <a href={`/products/${product.id}`}>
+          <img
+            src={product.image}
+            alt={product.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
+          />
+        </a>
+        {product.badge && (
+          <span className="absolute top-3 left-3 bg-accent-gold text-white text-[11px] font-bold px-2.5 py-1 rounded-sm">
+            {product.badge}
+          </span>
+        )}
+        {product.originalPrice && (
+          <span className="absolute top-3 right-3 bg-primary text-white text-[11px] font-bold px-2.5 py-1 rounded-sm">
+            -{Math.round((1 - product.price / product.originalPrice) * 100)}%
+          </span>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="p-4">
+        <p className="text-xs text-primary font-semibold mb-1">{product.category}</p>
+        <a href={`/products/${product.id}`} className="block">
+          <h3 className="text-sm font-medium text-gray-900 leading-snug line-clamp-2 hover:text-primary transition-colors">
+            {product.name}
+          </h3>
+        </a>
+
+        {/* Rating */}
+        {product.rating && (
+          <div className="flex items-center gap-1 mt-2">
+            <div className="flex items-center">
+            {[...Array(5)].map((_, i) => (
+                <span
+                  key={i}
+                  className={`text-xs ${i < Math.floor(product.rating!) ? 'text-accent-gold' : 'text-gray-300'}`}
+                >
+                  {i < Math.floor(product.rating!) ? '\u2605' : '\u2606'}
+                </span>
+              ))}
+            </div>
+            <span className="text-xs text-gray-400">({product.reviews})</span>
+          </div>
+        )}
+
+        {/* Price */}
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-base font-bold text-primary">KSh {product.price.toLocaleString()}</span>
+          {product.originalPrice && (
+            <span className="text-sm text-gray-400 line-through">KSh {product.originalPrice.toLocaleString()}</span>
+          )}
+        </div>
+
+        {/* Add to Cart */}
+        <button
+          type="button"
+          onClick={() => onAddToCart?.(product)}
+          className="w-full mt-3 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-primary transition-colors flex items-center justify-center gap-2"
+        >
+          <i className="ri-shopping-cart-line text-sm"></i>
+          Add to Cart
+        </button>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/feature/AppliancesSection.tsx">
+import { appliances } from '@/mocks/homeData';
+
+export default function AppliancesSection() {
+  const formatPrice = (price: number) => {
+    return `KSh${price.toLocaleString()}.00`;
+  };
+
+  return (
+    <section className="py-10 md:py-14 px-4 md:px-6 lg:px-10">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl md:text-2xl font-bold text-accent-dark">More Bedding Essentials</h2>
+        <a href="/collections" className="text-sm font-medium text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
+          View all
+        </a>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5" data-product-shop>
+        {appliances.map((product) => (
+          <a
+            key={product.id}
+            href={`/products/${product.id}`}
+            className="group relative bg-white rounded-lg overflow-hidden border border-gray-100 hover:border-gray-200 transition-all"
+          >
+            {/* Badge */}
+            {product.badge && (
+              <span className={`absolute top-2 left-2 z-10 px-2 py-0.5 text-[10px] font-bold rounded-sm ${
+                product.badge === 'Best Seller'
+                  ? 'bg-accent-gold text-white'
+                  : product.badge === 'New'
+                  ? 'bg-green-500 text-white'
+                  : 'bg-primary text-white'
+              }`}>
+                {product.badge}
+              </span>
+            )}
+
+            {/* Image */}
+            <div className="relative aspect-square bg-gray-50 overflow-hidden">
+              <img
+                src={product.image}
+                alt={product.name}
+                className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+
+            {/* Content */}
+            <div className="p-3">
+              <h3 className="text-xs font-medium text-accent-dark leading-snug line-clamp-2 group-hover:text-primary transition-colors mb-2 min-h-[36px]">
+                {product.name}
+              </h3>
+
+              <div className="flex items-end gap-2">
+                <span className="text-sm font-bold text-accent-dark">{formatPrice(product.price)}</span>
+                {product.originalPrice && (
+                  <span className="text-xs text-gray-400 line-through">{formatPrice(product.originalPrice)}</span>
+                )}
+              </div>
+
+              {/* Rating */}
+              {product.rating && (
+                <div className="flex items-center gap-1 mt-1.5">
+                  <div className="flex">
+                    {[...Array(5)].map((_, i) => {
+                      const isFilled = i < Math.floor(product.rating!);
+                      return (
+                      <div key={i} className="w-3 h-3 flex items-center justify-center">
+                        <span className={`text-xs ${isFilled ? 'text-accent-gold' : 'text-gray-300'}`}>
+                          {isFilled ? '\u2605' : '\u2606'}
+                        </span>
+                      </div>
+                      );
+                    })}
+                  </div>
+                  <span className="text-[10px] text-gray-500">({product.reviews})</span>
+                </div>
+              )}
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+</file>
+
+<file path="src/components/feature/CartProvider.tsx">
+import { useEffect } from 'react';
+import type { Product } from '@/mocks/homeData';
+
+interface CartItem {
+  product: Product;
+  quantity: number;
+  selectedColor?: string;
+  selectedSize?: string;
+}
+
+const CART_KEY = 'duvet-covers-cart';
+
+function loadCart(): CartItem[] {
+  try {
+    const raw = localStorage.getItem(CART_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCart(items: CartItem[]) {
+  localStorage.setItem(CART_KEY, JSON.stringify(items));
+  window.dispatchEvent(new Event('cartUpdated'));
+}
+
+export default function CartProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const handleAddToCart = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { product, quantity = 1, selectedColor, selectedSize } = customEvent.detail;
+
+      const current = loadCart();
+      const existing = current.find(
+        (item: CartItem) =>
+          item.product.id === product.id &&
+          item.selectedColor === selectedColor &&
+          item.selectedSize === selectedSize
+      );
+
+      if (existing) {
+        const updated = current.map((item: CartItem) =>
+          item.product.id === product.id &&
+          item.selectedColor === selectedColor &&
+          item.selectedSize === selectedSize
+            ? { ...item, quantity: item.quantity + quantity }
+            : item
+        );
+        saveCart(updated);
+      } else {
+        saveCart([...current, { product, quantity, selectedColor, selectedSize }]);
+      }
+    };
+
+    window.addEventListener('addToCart', handleAddToCart);
+    return () => window.removeEventListener('addToCart', handleAddToCart);
+  }, []);
+
+  return <>{children}</>;
+}
+</file>
+
+<file path="src/components/feature/CollectionsSection.tsx">
+import { collections } from '@/mocks/homeData';
+
+export default function CollectionsSection() {
+  return (
+    <section id="collections" className="py-10 md:py-14 px-4 md:px-6 lg:px-10">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl md:text-2xl font-bold text-accent-dark">Collections</h2>
+        <a href="/collections" className="text-sm font-medium text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
+          View all
+        </a>
+      </div>
+
+      <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 px-0 md:mx-0 md:px-0">
+        {collections.map((item) => (
+          <a
+            key={item.id}
+            href={item.link}
+            className="flex-shrink-0 w-[160px] md:w-[180px] group"
+          >
+            <div className="relative w-full aspect-square rounded-lg overflow-hidden mb-2 bg-gray-100">
+              <img
+                src={item.image}
+                alt={item.name}
+                className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+            <h3 className="text-xs font-semibold text-accent-dark leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+              {item.name}
+            </h3>
+            <span className="text-xs text-gray-500 mt-1 block">{item.subTitle}</span>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+</file>
+
+<file path="src/components/feature/DiscoverMore.tsx">
+import { discoverCategories } from '@/mocks/homeData';
+
+export default function DiscoverMore() {
+  return (
+    <section className="py-10 md:py-14 px-4 md:px-6 lg:px-10 bg-white">
+      <h2 className="text-xl md:text-2xl font-bold text-accent-dark mb-6">Discover More</h2>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+        {discoverCategories.map((category) => (
+          <div key={category.id} className="group">
+            {/* Image */}
+            <div className="relative h-[160px] md:h-[180px] rounded-lg overflow-hidden mb-3">
+              <img
+                src={category.image}
+                alt={category.name}
+                className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+              <div className="absolute bottom-3 left-3">
+                <h3 className="text-white font-bold text-sm">{category.name}</h3>
+              </div>
+            </div>
+
+            {/* Subcategories */}
+            <ul className="space-y-1.5">
+              {category.subcategories.map((sub) => (
+                <li key={sub}>
+                  <a
+                    href={`/collections/${sub.toLowerCase().replace(/\s+/g, '-')}`}
+                    className="text-xs text-gray-600 hover:text-primary transition-colors"
+                  >
+                    {sub}
+                  </a>
+                </li>
+              ))}
+            </ul>
+
+            {/* Shop All Link */}
+            <a
+              href={`/collections/${category.name.toLowerCase().replace(/\s+/g, '-')}`}
+              className="inline-flex items-center gap-1.5 mt-3 text-xs font-semibold text-accent-dark hover:text-primary transition-colors"
+            >
+              <div className="w-5 h-5 flex items-center justify-center rounded-full bg-accent-dark text-white">
+                <i className="ri-arrow-right-line text-[10px]"></i>
+              </div>
+              Shop All
+            </a>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+</file>
+
+<file path="src/components/feature/FeaturedProduct.tsx">
+import { useState } from 'react';
+import { featuredProduct } from '@/mocks/homeData';
+
+export default function FeaturedProduct() {
+  const [quantity, setQuantity] = useState(1);
+  const [selectedColor, setSelectedColor] = useState(featuredProduct.colors?.[0] || '');
+  const [selectedSize, setSelectedSize] = useState(featuredProduct.sizes?.[0] || '');
+  const [added, setAdded] = useState(false);
+
+  const formatPrice = (price: number) => {
+    return `KSh${price.toLocaleString()}.00`;
+  };
+
+  const handleAddToCart = () => {
+    window.dispatchEvent(
+      new CustomEvent('addToCart', {
+        detail: { product: featuredProduct, quantity, selectedColor, selectedSize },
+      })
+    );
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
+  };
+
+  const handleBuyNow = () => {
+    handleAddToCart();
+    window.location.href = '/cart';
+  };
+
+  return (
+    <section className="py-10 md:py-14 px-4 md:px-6 lg:px-10 bg-accent-gray">
+      <div className="flex flex-col lg:flex-row gap-6 md:gap-10 items-start">
+        {/* Left Image */}
+        <div className="lg:w-1/2 w-full">
+          <a href={`/products/${featuredProduct.id}`} className="block">
+            <div className="relative bg-white rounded-lg overflow-hidden aspect-square">
+              <img
+                src={featuredProduct.image}
+                alt={featuredProduct.name}
+                className="w-full h-full object-cover object-top"
+              />
+            </div>
+          </a>
+          {/* Thumbnail strip */}
+          <div className="flex gap-2 mt-3 flex-wrap overflow-x-hidden">
+            {[...Array(4)].map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                className="w-14 h-14 md:w-16 md:h-16 rounded-md overflow-hidden border border-gray-200 hover:border-primary transition-colors flex-shrink-0"
+              >
+                <img
+                  src={featuredProduct.image}
+                  alt="thumbnail"
+                  className="w-full h-full object-cover object-top"
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Right Info */}
+        <div className="lg:w-1/2 w-full">
+          {/* Badge */}
+          {featuredProduct.badge && (
+            <span className="inline-block px-2 py-0.5 bg-primary text-white text-[10px] font-bold rounded-sm mb-3">
+              {featuredProduct.badge}
+            </span>
+          )}
+
+          <h2 className="text-lg md:text-xl font-bold text-accent-dark leading-snug mb-3">
+            {featuredProduct.name}
+          </h2>
+
+          {/* Price */}
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-2xl font-bold text-accent-dark">{formatPrice(featuredProduct.price)}</span>
+            {featuredProduct.originalPrice && (
+              <span className="text-base text-gray-400 line-through">{formatPrice(featuredProduct.originalPrice)}</span>
+            )}
+          </div>
+
+          <p className="text-xs text-gray-500 mb-4">Shipping calculated at checkout.</p>
+
+          {/* Description Accordion */}
+          <div className="border-t border-gray-200 py-3">
+            <button type="button" className="flex items-center justify-between w-full text-left">
+              <span className="text-sm font-medium text-accent-dark">Description</span>
+              <div className="w-4 h-4 flex items-center justify-center">
+                <i className="ri-arrow-down-s-line text-gray-500"></i>
+              </div>
+            </button>
+          </div>
+
+          {/* Color Selection */}
+          {featuredProduct.colors && (
+            <div className="py-4">
+              <span className="text-sm font-medium text-accent-dark mb-2 block">Color: {selectedColor}</span>
+              <div className="flex gap-2">
+                {featuredProduct.colors.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setSelectedColor(color)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                      selectedColor === color
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    {color}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Size Selection */}
+          {featuredProduct.sizes && (
+            <div className="py-2">
+              <span className="text-sm font-medium text-accent-dark mb-2 block">SIZE</span>
+              <div className="flex gap-2">
+                {featuredProduct.sizes.map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => setSelectedSize(size)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                      selectedSize === size
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Quantity and Actions */}
+          <div className="flex flex-col gap-3 mt-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Quantity */}
+              <div className="flex items-center border border-gray-200 rounded-md w-fit">
+                <button
+                  type="button"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="w-4 h-4 flex items-center justify-center">
+                    <i className="ri-subtract-line text-sm"></i>
+                  </div>
+                </button>
+                <span className="w-10 h-10 flex items-center justify-center text-sm font-semibold text-accent-dark">
+                  {quantity}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="w-4 h-4 flex items-center justify-center">
+                    <i className="ri-add-line text-sm"></i>
+                  </div>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                className={`flex-1 h-10 flex items-center justify-center gap-2 text-white text-sm font-semibold rounded-md transition-colors ${
+                  added ? 'bg-green-600' : 'bg-primary hover:bg-primary-dark'
+                }`}
+              >
+                <div className="w-4 h-4 flex items-center justify-center">
+                  <i className={`${added ? 'ri-check-line' : 'ri-shopping-cart-line'} text-sm`}></i>
+                </div>
+                {added ? 'Added to Cart!' : 'Add to cart'}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleBuyNow}
+              className="w-full h-10 flex items-center justify-center gap-2 bg-accent-dark text-white text-sm font-semibold rounded-md hover:bg-black transition-colors"
+            >
+              Order Now
+            </button>
+
+            <button
+              type="button"
+              className="w-full h-10 flex items-center justify-center gap-2 border border-gray-200 text-accent-dark text-sm font-semibold rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Pay Online &amp; Get Free Delivery!
+              <div className="w-4 h-4 flex items-center justify-center">
+                <i className="ri-truck-line text-sm"></i>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+</file>
+
+<file path="src/components/feature/Footer.tsx">
+export default function Footer() {
+  return (
+    <footer className="bg-accent-dark text-white">
+      {/* Newsletter / Search Bar */}
+      <div className="border-b border-white/10 py-6 px-4 md:px-6 lg:px-10">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 max-w-4xl mx-auto">
+          <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 hidden sm:flex">
+            <i className="ri-hotel-bed-fill text-accent-gold text-xl"></i>
+          </div>
+          <div className="flex-1 w-full">
+            <div className="flex flex-col sm:flex-row">
+              <select className="px-3 py-2 bg-white/10 text-white text-sm rounded-t-md sm:rounded-l-md sm:rounded-tr-none border-b sm:border-b-0 sm:border-r border-white/20 focus:outline-none cursor-pointer">
+                <option>All</option>
+                <option>Duvet Covers</option>
+                <option>Pillows</option>
+                <option>Blankets</option>
+                <option>Bedsheets</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Search for bedding guides"
+                className="flex-1 px-3 py-2 bg-white/10 text-white text-sm placeholder-white/50 focus:outline-none"
+              />
+              <button
+                type="button"
+                className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-b-md sm:rounded-r-md sm:rounded-bl-none hover:bg-primary-dark transition-colors flex items-center justify-center"
+              >
+                <div className="w-4 h-4 flex items-center justify-center">
+                  <i className="ri-search-line text-sm"></i>
+                </div>
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center justify-center sm:justify-start gap-3">
+            <button type="button" className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-full transition-colors">
+              <i className="ri-user-line text-lg"></i>
+            </button>
+            <a href="/cart" className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-full transition-colors">
+              <i className="ri-shopping-cart-line text-lg"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Support Banner */}
+      <div className="border-b border-white/10 py-6 px-4 md:px-6 lg:px-10">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-primary/20 rounded-lg px-4 py-3 flex items-center gap-3">
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <i className="ri-customer-service-line text-accent-gold"></i>
+            </div>
+            <span className="text-sm font-medium">Complaints &amp; Feedback</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <i className="ri-message-3-line text-accent-gold"></i>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold mb-1">For Complaints Click Here</h4>
+                <p className="text-xs text-white/60">Resolve issues: Access our complaint section with a click.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <i className="ri-truck-line text-accent-gold"></i>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold mb-1">Check your order status</h4>
+                <p className="text-xs text-white/60">Updates &amp; tracking</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <i className="ri-arrow-go-back-line text-accent-gold"></i>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold mb-1">Returns &amp; exchanges</h4>
+                <p className="text-xs text-white/60">All you need to know</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Footer Links */}
+      <div className="py-10 px-4 md:px-6 lg:px-10">
+        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
+          {/* About */}
+          <div>
+            <h4 className="text-sm font-bold mb-4">Duvet Covers Kenya</h4>
+            <p className="text-xs text-white/60 leading-relaxed mb-4">
+              Duvet Covers Kenya is a leading online store for premium duvet covers, pillows, blankets, bedsheets and bedding sets in Kenya. Shop soft, durable, and elegant bedroom essentials with fast nationwide delivery.
+            </p>
+            <h5 className="text-xs font-semibold mb-2">Categories:</h5>
+            <p className="text-xs text-white/60">
+              Duvet Covers | Pillows | Blankets | Bedsheets | Bedding Sets | Mattress Protectors
+            </p>
+            <div className="mt-4 text-xs text-white/60">
+              <div className="flex items-start gap-2 mb-1">
+                <div className="w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <i className="ri-map-pin-line text-accent-gold text-xs"></i>
+                </div>
+                <span>Hazina Trade Centre, Monrovia Street, Mezzanine 2, Nairobi</span>
+              </div>
+              <div className="flex items-start gap-2 mb-1">
+                <div className="w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <i className="ri-phone-line text-accent-gold text-xs"></i>
+                </div>
+                <span>Call/WhatsApp: 0723 784 736 | 0723 333 767 | 0720 65 65 00</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <i className="ri-mail-line text-accent-gold text-xs"></i>
+                </div>
+                <span>sales@duvetcoverskenya.com</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Customer Service */}
+          <div>
+            <h4 className="text-sm font-bold mb-4">Customer Service</h4>
+            <ul className="space-y-2">
+              {['Home', 'Search', 'Shipping Policy', 'Refund Policy', 'Contact us'].map((item) => (
+                <li key={item}>
+                  <a href={`/${item.toLowerCase().replace(/\s+/g, '-')}`} className="text-xs text-white/60 hover:text-accent-gold transition-colors">
+                    {item}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Shipping */}
+          <div>
+            <h4 className="text-sm font-bold mb-4">Shipping</h4>
+            <ul className="space-y-2">
+              <li>
+                <span className="text-xs text-white/60">Shipping from Nairobi: Terms &amp; Conditions</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Delivery Coverage */}
+          <div>
+            <h4 className="text-sm font-bold mb-4">Delivery Coverage</h4>
+            <p className="text-xs text-white/60 leading-relaxed">
+              Nationwide delivery across Kenya including Nairobi, Mombasa, Kisumu, Nakuru, Eldoret and surrounding areas
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Social & Copyright */}
+      <div className="border-t border-white/10 py-6 px-4 md:px-6 lg:px-10">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {['facebook', 'instagram', 'twitter-x', 'tiktok'].map((social) => (
+              <a
+                key={social}
+                href={`https://${social}.com/duvetcoverskenya`}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                <i className={`ri-${social === 'twitter-x' ? 'twitter-x' : social}-line text-sm`}></i>
+              </a>
+            ))}
+          </div>
+          <p className="text-xs text-white/40 text-center sm:text-right">
+            &copy; 2026 Duvet Covers Kenya. All rights reserved. | www.duvetcoverskenya.com
+          </p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+</file>
+
+<file path="src/components/feature/HeroSection.tsx">
+import { useState } from 'react';
+
+export default function HeroSection() {
+  return (
+    <section className="relative h-[420px] md:h-[520px] overflow-hidden">
+      {/* Background Image */}
+      <div className="absolute inset-0">
+        <img
+          src="https://readdy.ai/api/search-image?query=Luxurious%20cozy%20bedroom%20interior%20with%20white%20duvet%20covers%20plush%20pillows%20soft%20blankets%20and%20crisp%20bedsheets%20on%20a%20large%20bed%20natural%20warm%20lighting%20from%20window%20elegant%20modern%20decor%20soft%20neutral%20tones%20high%20end%20hotel%20style%20professional%20interior%20photography%20soft%20pastel%20background%20cream%20beige&width=1440&height=520&seq=70&orientation=landscape"
+          alt="Luxurious bedroom with premium bedding"
+          className="w-full h-full object-cover object-top"
+        />
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-black/50 md:bg-gradient-to-r md:from-black/50 md:via-black/35 md:to-black/20"></div>
+      </div>
+
+      {/* Content - Centered on mobile, left-aligned on desktop */}
+      <div className="relative z-10 h-full flex items-center justify-center md:justify-start px-4 md:px-6 lg:px-16">
+        <div className="text-center md:text-left max-w-xl">
+          <span className="text-accent-gold text-xs font-semibold uppercase tracking-wider mb-3 block">
+            Premium Quality
+          </span>
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
+            Duvet Covers, Pillows &<br className="hidden md:block" /> Bedding in Kenya
+          </h1>
+          <p className="text-white/80 text-sm md:text-base mb-6 leading-relaxed">
+            Shop premium duvet covers, pillows, blankets, bedsheets &amp; bedding sets. Soft, durable, and elegant for every bedroom. Delivery available countrywide.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 items-center md:items-start">
+            <a
+              href="/collections/duvets"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-accent-dark text-sm font-semibold rounded-md hover:bg-gray-100 transition-colors whitespace-nowrap"
+            >
+              Shop Duvets
+            </a>
+            <a
+              href="/collections/bedsheets"
+              className="inline-flex items-center gap-2 px-5 py-2.5 border border-white/40 text-white text-sm font-semibold rounded-md hover:bg-white/10 transition-colors whitespace-nowrap"
+            >
+              Shop Bedsheets
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+</file>
+
+<file path="src/components/feature/KitchenBanner.tsx">
+export default function KitchenBanner() {
+  return (
+    <section className="py-10 md:py-14 px-4 md:px-6 lg:px-10">
+      <div className="relative rounded-xl overflow-hidden">
+        <div className="flex flex-col lg:flex-row items-stretch">
+          {/* Left Image */}
+          <div className="lg:w-1/2 relative min-h-[280px] md:min-h-[350px]">
+            <img
+              src="https://readdy.ai/api/search-image?query=Luxurious%20bedroom%20with%20premium%20white%20bedding%20set%20duvet%20covers%20pillows%20and%20soft%20blankets%20elegant%20modern%20interior%20warm%20natural%20lighting%20professional%20interior%20photography%20clean%20crisp%20linen%20hotel%20quality&width=700&height=400&seq=80&orientation=landscape"
+              alt="Premium bedding showcase"
+              className="w-full h-full object-cover object-top absolute inset-0"
+            />
+          </div>
+
+          {/* Right Content */}
+          <div className="lg:w-1/2 bg-accent-gray p-6 md:p-10 flex flex-col justify-center">
+            <h2 className="text-2xl md:text-3xl font-bold text-accent-dark mb-3">
+              Upgrade Your<br />Sleep Experience
+            </h2>
+            <p className="text-gray-600 text-sm md:text-base leading-relaxed mb-6">
+              Shop premium duvet covers, soft pillows, warm blankets and crisp bedsheets designed to transform your bedroom into a cozy sanctuary across Kenya.
+            </p>
+            <a
+              href="/collections"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent-dark text-white text-sm font-semibold rounded-md hover:bg-black transition-colors w-fit whitespace-nowrap"
+            >
+              Shop Bedding
+              <div className="w-4 h-4 flex items-center justify-center">
+                <i className="ri-arrow-right-line text-sm"></i>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+</file>
+
+<file path="src/components/feature/MarqueeSection.tsx">
+import { marqueeItems } from '@/mocks/homeData';
+
+export default function MarqueeSection() {
+  return (
+    <section className="py-4 bg-accent-gray border-y border-gray-200 overflow-hidden">
+      <div className="flex animate-marquee whitespace-nowrap">
+        {[...marqueeItems, ...marqueeItems, ...marqueeItems].map((item, index) => (
+          <div key={index} className="flex items-center mx-6 md:mx-10 flex-shrink-0">
+            <div className="w-6 h-6 flex items-center justify-center mr-2">
+              <span className="text-accent-gold text-sm">★</span>
+            </div>
+            <span className="text-sm font-semibold text-accent-dark">{item}</span>
+            {item === 'New Arrivals' && (
+              <span className="ml-2 px-2 py-0.5 bg-accent-dark text-white text-[10px] font-bold rounded-sm">
+                New
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+</file>
+
+<file path="src/components/feature/Navbar.tsx">
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+export default function Navbar() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+
+  const navLinks = [
+    { name: 'Home', href: '/' },
+    { name: 'Duvets', href: '/collections/duvets' },
+    { name: 'Bedsheets', href: '/collections/bedsheets' },
+    { name: 'Pillows', href: '/collections/pillows' },
+    { name: 'Blankets', href: '/collections/blankets' },
+    { name: 'Contact', href: '/contact' },
+  ];
+
+  const loadCartCount = () => {
+    try {
+      const raw = localStorage.getItem('duvet-covers-cart');
+      const items = raw ? JSON.parse(raw) : [];
+      setCartCount(items.reduce((sum: number, item: { quantity: number }) => sum + item.quantity, 0));
+    } catch {
+      setCartCount(0);
+    }
+  };
+
+  useEffect(() => {
+    loadCartCount();
+    const handleCartUpdate = () => loadCartCount();
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    const interval = setInterval(loadCartCount, 500);
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdate);
+      clearInterval(interval);
+    };
+  }, []);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/collections?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchOpen(false);
+      setSearchQuery('');
+    }
+  };
+
+  return (
+    <>
+      <header className="relative z-50">
+        {/* Main Navbar */}
+        <nav className="bg-white border-b border-gray-100">
+          <div className="flex items-center justify-between px-4 md:px-6 lg:px-10 py-3">
+            {/* Logo */}
+            <a href="/" className="flex items-center gap-2 flex-shrink-0">
+              <div className="w-8 h-8 flex items-center justify-center">
+                <i className="ri-hotel-bed-fill text-primary text-xl"></i>
+              </div>
+              <span className="text-lg font-bold text-accent-dark tracking-tight">
+                Duvet<span className="text-primary">Covers</span><span className="text-accent-gold ml-0.5">Kenya</span>
+              </span>
+            </a>
+
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-6 lg:gap-8">
+              {navLinks.map((link) => (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  className="text-sm font-medium text-gray-700 hover:text-primary transition-colors whitespace-nowrap"
+                >
+                  {link.name}
+                </a>
+              ))}
+            </div>
+
+            {/* Right Actions */}
+            <div className="flex items-center gap-3">
+              {/* Search */}
+              <button
+                type="button"
+                onClick={() => setSearchOpen(true)}
+                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-50 transition-colors"
+                aria-label="Search"
+              >
+                <i className="ri-search-line text-gray-600 text-lg"></i>
+              </button>
+
+              {/* Cart */}
+              <a
+                href="/cart"
+                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-50 transition-colors relative"
+                aria-label="Cart"
+              >
+                <i className="ri-shopping-cart-line text-gray-600 text-lg"></i>
+                {cartCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                )}
+              </a>
+
+              {/* User */}
+              <button
+                type="button"
+                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-50 transition-colors"
+                aria-label="Account"
+              >
+                <i className="ri-user-line text-gray-600 text-lg"></i>
+              </button>
+
+              {/* Mobile Menu Button */}
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-50 transition-colors md:hidden"
+                aria-label="Menu"
+              >
+                <i className={`${mobileMenuOpen ? 'ri-close-line' : 'ri-menu-line'} text-gray-600 text-lg`}></i>
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-gray-100 bg-white">
+              <div className="flex flex-col py-2">
+                {navLinks.map((link) => (
+                  <a
+                    key={link.name}
+                    href={link.href}
+                    className="px-4 py-3 text-sm font-medium text-gray-700 hover:text-primary hover:bg-gray-50 transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    {link.name}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </nav>
+      </header>
+
+      {/* Search Overlay */}
+      {searchOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-start justify-center pt-20 px-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-4">
+            <form onSubmit={handleSearch} className="flex items-center gap-3">
+              <i className="ri-search-line text-gray-400 text-lg"></i>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search duvet covers, pillows, blankets..."
+                className="flex-1 text-base focus:outline-none"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setSearchOpen(false)}
+                className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600"
+              >
+                <i className="ri-close-line"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+</file>
+
+<file path="src/components/feature/OffersSection.tsx">
+import { offerBanners } from '@/mocks/homeData';
+
+export default function OffersSection() {
+  return (
+    <section className="py-10 md:py-14 px-4 md:px-6 lg:px-10">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl md:text-2xl font-bold text-accent-dark">Top Offers</h2>
+        <a href="/offers" className="text-sm font-medium text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
+          View All
+        </a>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Large left banner */}
+        <a href={offerBanners[0].link} className="md:col-span-1 lg:col-span-2 lg:row-span-2 group relative rounded-lg overflow-hidden block">
+          <div className="relative h-[300px] md:h-full min-h-[300px] lg:min-h-[420px]">
+            <img
+              src={offerBanners[0].image}
+              alt={offerBanners[0].title}
+              className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+            <div className="absolute bottom-4 left-4 right-4">
+              {offerBanners[0].badge && (
+                <span className="inline-block px-3 py-1 bg-primary text-white text-xs font-bold rounded-full mb-2">
+                  {offerBanners[0].badge}
+                </span>
+              )}
+              <h3 className="text-white font-bold text-base md:text-lg">{offerBanners[0].title}</h3>
+              <p className="text-white/80 text-xs mt-1">Shop Premium Bedding</p>
+            </div>
+          </div>
+        </a>
+
+        {/* Right top banners */}
+        {offerBanners.slice(1, 3).map((banner) => (
+          <a key={banner.id} href={banner.link} className="group relative rounded-lg overflow-hidden block">
+            <div className="relative h-[180px] md:h-[200px]">
+              <img
+                src={banner.image}
+                alt={banner.title}
+                className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+              <div className="absolute bottom-3 left-3 right-3">
+                {banner.badge && (
+                  <span className="inline-block px-2 py-0.5 bg-primary text-white text-[10px] font-bold rounded-sm mb-1">
+                    {banner.badge}
+                  </span>
+                )}
+                <h3 className="text-white font-bold text-sm">{banner.title}</h3>
+              </div>
+            </div>
+          </a>
+        ))}
+
+        {/* Bottom wide banner */}
+        <a href={offerBanners[3].link} className="md:col-span-2 lg:col-span-2 group relative rounded-lg overflow-hidden block">
+          <div className="relative h-[160px] md:h-[180px]">
+            <img
+              src={offerBanners[3].image}
+              alt={offerBanners[3].title}
+              className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+            <div className="absolute bottom-3 left-3 right-3">
+              <h3 className="text-white font-bold text-sm">{offerBanners[3].title}</h3>
+              <p className="text-white/80 text-xs mt-0.5">Transform Your Bedroom</p>
+            </div>
+          </div>
+        </a>
+      </div>
+    </section>
+  );
+}
+</file>
+
+<file path="src/components/feature/TopBar.tsx">
+export default function TopBar() {
+  return (
+    <div className="bg-primary text-white text-xs">
+      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 py-2 px-4 text-center">
+        <span className="font-medium">Welcome to Duvet Covers Kenya</span>
+        <a
+          href="#collections"
+          className="underline font-medium hover:text-accent-gold transition-colors"
+        >
+          Shop Now
+        </a>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/feature/TrendingSection.tsx">
+import { trendingProducts } from '@/mocks/homeData';
+
+export default function TrendingSection() {
+  const formatPrice = (price: number) => {
+    return `KSh${price.toLocaleString()}.00`;
+  };
+
+  return (
+    <section className="py-10 md:py-14 px-4 md:px-6 lg:px-10 bg-white">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl md:text-2xl font-bold text-accent-dark">Trending Now</h2>
+        <a href="/products" className="text-sm font-medium text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
+          View all
+        </a>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5" data-product-shop>
+        {trendingProducts.map((product) => (
+          <a
+            key={product.id}
+            href={`/products/${product.id}`}
+            className="group relative bg-white rounded-lg overflow-hidden border border-gray-100 hover:border-gray-200 transition-all"
+          >
+            {/* Badge */}
+            {product.badge && (
+              <span className={`absolute top-2 left-2 z-10 px-2 py-0.5 text-[10px] font-bold rounded-sm ${
+                product.badge === 'Hot Sale'
+                  ? 'bg-red-500 text-white'
+                  : product.badge === 'New'
+                  ? 'bg-green-500 text-white'
+                  : 'bg-primary text-white'
+              }`}>
+                {product.badge}
+              </span>
+            )}
+
+            {/* Image */}
+            <div className="relative aspect-square bg-gray-50 overflow-hidden">
+              <img
+                src={product.image}
+                alt={product.name}
+                className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+
+            {/* Content */}
+            <div className="p-3">
+              <h3 className="text-xs font-medium text-accent-dark leading-snug line-clamp-2 group-hover:text-primary transition-colors mb-2 min-h-[36px]">
+                {product.name}
+              </h3>
+
+              <div className="flex items-end gap-2">
+                <span className="text-sm font-bold text-accent-dark">{formatPrice(product.price)}</span>
+                {product.originalPrice && (
+                  <span className="text-xs text-gray-400 line-through">{formatPrice(product.originalPrice)}</span>
+                )}
+              </div>
+
+              {/* Rating */}
+              {product.rating && (
+                <div className="flex items-center gap-1 mt-1.5">
+                  <div className="flex">
+                    {[...Array(5)].map((_, i) => {
+                      const isFilled = i < Math.floor(product.rating!);
+                      return (
+                      <div key={i} className="w-3 h-3 flex items-center justify-center">
+                        <span className={`text-xs ${isFilled ? 'text-accent-gold' : 'text-gray-300'}`}>
+                          {isFilled ? '\u2605' : '\u2606'}
+                        </span>
+                      </div>
+                      );
+                    })}
+                  </div>
+                  <span className="text-[10px] text-gray-500">({product.reviews})</span>
+                </div>
+              )}
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+</file>
+
+<file path="src/hooks/useCart.ts">
+import { useState, useCallback, useEffect } from 'react';
+import type { Product } from '@/mocks/homeData';
+
+export interface CartItem {
+  product: Product;
+  quantity: number;
+  selectedColor?: string;
+  selectedSize?: string;
+}
+
+const CART_KEY = 'duvet-covers-cart';
+
+function loadCart(): CartItem[] {
+  try {
+    const raw = localStorage.getItem(CART_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCart(items: CartItem[]) {
+  localStorage.setItem(CART_KEY, JSON.stringify(items));
+}
+
+export function useCart() {
+  const [items, setItems] = useState<CartItem[]>(() => loadCart());
+
+  useEffect(() => {
+    saveCart(items);
+  }, [items]);
+
+  const addToCart = useCallback((product: Product, quantity = 1, selectedColor?: string, selectedSize?: string) => {
+    setItems((prev) => {
+      const existing = prev.find(
+        (item) =>
+          item.product.id === product.id &&
+          item.selectedColor === selectedColor &&
+          item.selectedSize === selectedSize
+      );
+      if (existing) {
+        return prev.map((item) =>
+          item.product.id === product.id &&
+          item.selectedColor === selectedColor &&
+          item.selectedSize === selectedSize
+            ? { ...item, quantity: item.quantity + quantity }
+            : item
+        );
+      }
+      return [...prev, { product, quantity, selectedColor, selectedSize }];
+    });
+  }, []);
+
+  const removeFromCart = useCallback((productId: string, selectedColor?: string, selectedSize?: string) => {
+    setItems((prev) =>
+      prev.filter(
+        (item) =>
+          !(item.product.id === productId && item.selectedColor === selectedColor && item.selectedSize === selectedSize)
+      )
+    );
+  }, []);
+
+  const updateQuantity = useCallback((productId: string, selectedColor: string | undefined, selectedSize: string | undefined, quantity: number) => {
+    if (quantity <= 0) {
+      removeFromCart(productId, selectedColor, selectedSize);
+      return;
+    }
+    setItems((prev) =>
+      prev.map((item) =>
+        item.product.id === productId && item.selectedColor === selectedColor && item.selectedSize === selectedSize
+          ? { ...item, quantity }
+          : item
+      )
+    );
+  }, [removeFromCart]);
+
+  const clearCart = useCallback(() => setItems([]), []);
+
+  const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const cartTotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+
+  return { items, addToCart, removeFromCart, updateQuantity, clearCart, cartCount, cartTotal };
+}
+</file>
+
+<file path="src/i18n/local/index.ts">
+const modules = import.meta.glob('./*/*.ts', { eager: true });
+
+const messages: Record<string, { translation: Record<string, string> }> = {};
+
+Object.keys(modules).forEach((path) => {
+  const match = path.match(/\.\/([^/]+)\/([^/]+)\.ts$/);
+  if (match) {
+    const [, lang] = match;
+    const module = modules[path] as { default?: Record<string, string> };
+    
+    if (!messages[lang]) {
+      messages[lang] = { translation: {} };
+    }
+    
+    // 合并翻译内容
+    if (module.default) {
+      messages[lang].translation = {
+        ...messages[lang].translation,
+        ...module.default
+      };
+    }
+  }
+});
+
+export default messages;
+</file>
+
+<file path="src/i18n/index.ts">
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import LanguageDetector from 'i18next-browser-languagedetector';
+import messages from './local/index';
+
+i18n
+  .use(LanguageDetector)
+  .use(initReactI18next)
+  .init({
+    lng: 'en',
+    fallbackLng: 'en',
+    debug: false,
+    resources: messages,
+    interpolation: {
+      escapeValue: false,
+    },
+  });
+
+export default i18n;
+</file>
+
+<file path="src/mocks/allProducts.ts">
+import type { Product } from '@/mocks/homeData';
+
+export const allProducts: Product[] = [
+  {
+    id: 'p1',
+    name: 'Premium 100% Cotton Duvet Cover Set - King Size, 3-Piece with Pillowcases, Soft & Breathable, White',
+    price: 4999,
+    originalPrice: 8500,
+    image: 'https://readdy.ai/api/search-image?query=White%20cotton%20duvet%20cover%20set%20with%20two%20matching%20pillowcases%20on%20bed%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20high%20quality%20linen&width=400&height=400&seq=101&orientation=squarish',
+    category: 'Duvet Covers',
+    badge: 'Hot Sale',
+    rating: 4.9,
+    reviews: 312,
+    colors: ['White', 'Beige', 'Grey', 'Navy'],
+    sizes: ['Single', 'Queen', 'King', 'Super King'],
+  },
+  {
+    id: 'p2',
+    name: 'Luxury Memory Foam Pillow - Orthopedic Neck Support, Hypoallergenic, Standard Size',
+    price: 2499,
+    originalPrice: 4500,
+    image: 'https://readdy.ai/api/search-image?query=White%20memory%20foam%20pillow%20with%20soft%20cotton%20cover%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20ergonomic%20design&width=400&height=400&seq=102&orientation=squarish',
+    category: 'Pillows',
+    badge: 'Best Seller',
+    rating: 4.7,
+    reviews: 198,
+  },
+  {
+    id: 'p3',
+    name: 'Ultra Soft Fleece Blanket - Queen Size, Warm & Cozy, Machine Washable',
+    price: 3499,
+    originalPrice: 5500,
+    image: 'https://readdy.ai/api/search-image?query=Soft%20fluffy%20fleece%20blanket%20in%20cream%20color%20draped%20neatly%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20warm%20cozy%20texture&width=400&height=400&seq=103&orientation=squarish',
+    category: 'Blankets',
+    badge: 'Sale',
+    rating: 4.6,
+    reviews: 156,
+    colors: ['Cream', 'Grey', 'Pink', 'Blue'],
+  },
+  {
+    id: 'p4',
+    name: 'Egyptian Cotton Fitted Bedsheet - Deep Pocket, 400 Thread Count, Single Size, Crisp White',
+    price: 1999,
+    originalPrice: 3500,
+    image: 'https://readdy.ai/api/search-image?query=Crisp%20white%20fitted%20bedsheet%20on%20mattress%20corner%20showing%20deep%20pocket%20elastic%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20hotel%20quality&width=400&height=400&seq=104&orientation=squarish',
+    category: 'Bedsheets',
+    rating: 4.5,
+    reviews: 89,
+    sizes: ['Single', 'Double', 'Queen', 'King'],
+  },
+  {
+    id: 'p5',
+    name: 'Complete 7-Piece Bedding Set - Duvet Cover, Fitted Sheet, Pillowcases & Cushion Covers, King Size, Grey',
+    price: 8999,
+    originalPrice: 14500,
+    image: 'https://readdy.ai/api/search-image?query=Complete%20grey%20bedding%20set%20with%20duvet%20cover%20fitted%20sheet%20and%20multiple%20pillowcases%20on%20made%20bed%20professional%20interior%20photography%20soft%20warm%20lighting%20elegant%20modern%20bedroom&width=400&height=400&seq=105&orientation=squarish',
+    category: 'Bedding Sets',
+    badge: 'New',
+    rating: 4.8,
+    reviews: 74,
+    colors: ['Grey', 'White', 'Beige'],
+  },
+  {
+    id: 'p6',
+    name: 'Waterproof Mattress Protector - Quilted, Hypoallergenic, Fitted Style, Double Size, White',
+    price: 2499,
+    image: 'https://readdy.ai/api/search-image?query=White%20quilted%20waterproof%20mattress%20protector%20on%20clean%20bed%20professional%20product%20photography%20soft%20studio%20lighting%20minimal%20background%20hygiene%20protection&width=400&height=400&seq=106&orientation=squarish',
+    category: 'Mattress Protectors',
+    rating: 4.4,
+    reviews: 67,
+  },
+  {
+    id: 'p7',
+    name: 'Luxury Goose Down Duvet Inner - 13.5 Tog, Warm Winter Weight, King Size, Hotel Quality',
+    price: 12999,
+    originalPrice: 18999,
+    image: 'https://readdy.ai/api/search-image?query=Fluffy%20white%20goose%20down%20duvet%20inner%20comforter%20on%20bed%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20luxury%20hotel%20quality%20warm&width=400&height=400&seq=107&orientation=squarish',
+    category: 'Duvet Inners',
+    badge: 'Best Seller',
+    rating: 4.9,
+    reviews: 245,
+    sizes: ['Single', 'Double', 'Queen', 'King'],
+  },
+  {
+    id: 'p8',
+    name: 'Silk Pillowcase Set of 2 - Mulberry Silk, Anti-Aging, Hair-Friendly, Champagne Color',
+    price: 3499,
+    originalPrice: 5500,
+    image: 'https://readdy.ai/api/search-image?query=Two%20champagne%20colored%20silk%20pillowcases%20neatly%20arranged%20on%20white%20surface%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20luxury%20smooth%20texture&width=400&height=400&seq=108&orientation=squarish',
+    category: 'Pillowcases',
+    badge: 'New',
+    rating: 4.7,
+    reviews: 132,
+    colors: ['Champagne', 'White', 'Pink', 'Black'],
+  },
+  {
+    id: 'p9',
+    name: 'Weighted Blanket - 7kg, Gravity Therapy Blanket for Better Sleep, Grey Cotton Cover',
+    price: 7999,
+    image: 'https://readdy.ai/api/search-image?query=Grey%20weighted%20blanket%20with%20quilted%20pattern%20on%20neatly%20made%20bed%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20therapeutic%20calm&width=400&height=400&seq=109&orientation=squarish',
+    category: 'Blankets',
+    rating: 4.6,
+    reviews: 91,
+    sizes: ['5kg', '7kg', '9kg'],
+  },
+  {
+    id: 'p10',
+    name: 'Bamboo Fiber Bedsheet Set - 4-Piece, Ultra Soft, Eco-Friendly, Queen Size, Sage Green',
+    price: 5999,
+    originalPrice: 9500,
+    image: 'https://readdy.ai/api/search-image?query=Sage%20green%20bamboo%20fiber%20bedsheet%20set%20with%20matching%20pillowcases%20on%20bed%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20eco%20friendly%20natural%20texture&width=400&height=400&seq=110&orientation=squarish',
+    category: 'Bedsheets',
+    rating: 4.5,
+    reviews: 58,
+    colors: ['Sage Green', 'White', 'Sky Blue'],
+  },
+  {
+    id: 'p11',
+    name: 'Linen Duvet Cover Set - Stone Washed French Linen, Queen Size, 3-Piece, Natural Beige',
+    price: 7999,
+    originalPrice: 12999,
+    image: 'https://readdy.ai/api/search-image?query=Natural%20beige%20linen%20duvet%20cover%20set%20on%20bed%20with%20soft%20rumpled%20texture%20professional%20product%20photography%20soft%20studio%20lighting%20minimal%20background%20french%20style&width=400&height=400&seq=111&orientation=squarish',
+    category: 'Duvet Covers',
+    rating: 4.8,
+    reviews: 104,
+    colors: ['Natural Beige', 'Charcoal', 'Olive', 'Blush'],
+    sizes: ['Single', 'Queen', 'King'],
+  },
+  {
+    id: 'p12',
+    name: 'Cooling Gel Memory Foam Pillow - Ventilated Design, Neck Support, Standard Size',
+    price: 3199,
+    originalPrice: 4999,
+    image: 'https://readdy.ai/api/search-image?query=Modern%20cooling%20gel%20memory%20foam%20pillow%20with%20ventilated%20holes%20on%20white%20background%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20style&width=400&height=400&seq=112&orientation=squarish',
+    category: 'Pillows',
+    badge: 'Popular',
+    rating: 4.5,
+    reviews: 76,
+  },
+  {
+    id: 'p13',
+    name: 'Chunky Knit Blanket Throw - Handcrafted Wool Blend, 120x180cm, Cream Color',
+    price: 4499,
+    originalPrice: 6999,
+    image: 'https://readdy.ai/api/search-image?query=Chunky%20knit%20cream%20wool%20blanket%20throw%20draped%20over%20sofa%20arm%20professional%20product%20photography%20soft%20studio%20lighting%20minimal%20background%20cozy%20textured&width=400&height=400&seq=113&orientation=squarish',
+    category: 'Blankets',
+    rating: 4.7,
+    reviews: 123,
+    colors: ['Cream', 'Grey', 'Mustard', 'Rust'],
+  },
+  {
+    id: 'p14',
+    name: 'Sateen Weave Flat Sheet - 600 Thread Count Egyptian Cotton, Double Size, Ivory',
+    price: 2799,
+    originalPrice: 4500,
+    image: 'https://readdy.ai/api/search-image?query=Smooth%20ivory%20sateen%20flat%20sheet%20draped%20elegantly%20on%20bed%20professional%20product%20photography%20soft%20studio%20lighting%20minimal%20background%20luxurious%20sheen&width=400&height=400&seq=114&orientation=squarish',
+    category: 'Bedsheets',
+    rating: 4.6,
+    reviews: 45,
+    sizes: ['Single', 'Double', 'Queen', 'King'],
+  },
+  {
+    id: 'p15',
+    name: 'Kids Complete Bedding Set - Twin Size, Dinosaur Print, 4-Piece with Duvet, Sheet & Pillowcases',
+    price: 4499,
+    originalPrice: 6999,
+    image: 'https://readdy.ai/api/search-image?query=Colorful%20kids%20bedding%20set%20with%20fun%20dinosaur%20print%20on%20duvet%20and%20pillowcases%20on%20child%20bed%20professional%20product%20photography%20bright%20soft%20lighting%20playful%20bedroom&width=400&height=400&seq=115&orientation=squarish',
+    category: 'Bedding Sets',
+    badge: 'New',
+    rating: 4.8,
+    reviews: 38,
+  },
+  {
+    id: 'p16',
+    name: 'Temperature Regulating Mattress Topper - 5cm Memory Foam, Cooling Gel Infused, Queen Size',
+    price: 9999,
+    originalPrice: 14999,
+    image: 'https://readdy.ai/api/search-image?query=White%20quilted%20mattress%20topper%20pad%20on%20bed%20showing%20thickness%20professional%20product%20photography%20soft%20studio%20lighting%20minimal%20background%20premium%20quality&width=400&height=400&seq=116&orientation=squarish',
+    category: 'Mattress Protectors',
+    badge: 'Hot Sale',
+    rating: 4.7,
+    reviews: 89,
+    sizes: ['Double', 'Queen', 'King'],
+  },
+  {
+    id: 'p17',
+    name: 'Velvet Duvet Cover Set - Luxurious Soft Velvet, Double Size, 3-Piece, Emerald Green',
+    price: 6499,
+    originalPrice: 9999,
+    image: 'https://readdy.ai/api/search-image?query=Rich%20emerald%20green%20velvet%20duvet%20cover%20set%20on%20bed%20luxurious%20texture%20professional%20product%20photography%20soft%20studio%20lighting%20minimal%20background%20premium%20elegant&width=400&height=400&seq=117&orientation=squarish',
+    category: 'Duvet Covers',
+    rating: 4.6,
+    reviews: 56,
+    colors: ['Emerald Green', 'Blush Pink', 'Navy', 'Charcoal'],
+    sizes: ['Double', 'Queen', 'King'],
+  },
+  {
+    id: 'p18',
+    name: 'Bamboo Fiber Pillow - Adjustable Fill, Hypoallergenic, Queen Size, Soft Support',
+    price: 2799,
+    originalPrice: 3999,
+    image: 'https://readdy.ai/api/search-image?query=White%20bamboo%20fiber%20pillow%20with%20zipper%20showing%20adjustable%20fill%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20eco%20friendly&width=400&height=400&seq=118&orientation=squarish',
+    category: 'Pillows',
+    rating: 4.4,
+    reviews: 62,
+  },
+  {
+    id: 'p19',
+    name: 'Sherpa Fleece Blanket - Ultra Thick & Warm, King Size, Reversible, Light Grey',
+    price: 4999,
+    originalPrice: 7500,
+    image: 'https://readdy.ai/api/search-image?query=Thick%20sherpa%20fleece%20reversible%20blanket%20in%20light%20grey%20on%20bed%20professional%20product%20photography%20soft%20studio%20lighting%20minimal%20background%20plush%20warm%20texture&width=400&height=400&seq=119&orientation=squarish',
+    category: 'Blankets',
+    rating: 4.8,
+    reviews: 167,
+    colors: ['Light Grey', 'White', 'Navy', 'Dusty Rose'],
+    sizes: ['Single', 'Queen', 'King'],
+  },
+  {
+    id: 'p20',
+    name: 'Hotel Collection Bedsheet Set - 4-Piece, 800 Thread Count Sateen Cotton, King Size, White',
+    price: 7499,
+    originalPrice: 11999,
+    image: 'https://readdy.ai/api/search-image?query=Luxurious%20hotel%20collection%20white%20bedsheet%20set%20on%20perfectly%20made%20bed%20crisp%20linens%20professional%20product%20photography%20bright%20studio%20lighting%20clean%20minimal%20background%20five%20star%20quality&width=400&height=400&seq=120&orientation=squarish',
+    category: 'Bedsheets',
+    badge: 'Premium',
+    rating: 4.9,
+    reviews: 201,
+    sizes: ['Queen', 'King', 'Super King'],
+  },
+];
+</file>
+
+<file path="src/mocks/homeData.ts">
+export interface Product {
+  id: string;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  image: string;
+  category: string;
+  badge?: string;
+  rating?: number;
+  reviews?: number;
+  colors?: string[];
+  sizes?: string[];
+}
+
+export interface Collection {
+  id: string;
+  name: string;
+  subTitle: string;
+  image: string;
+  link: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  subcategories: string[];
+  image: string;
+}
+
+export interface OfferBanner {
+  id: string;
+  title: string;
+  subtitle: string;
+  image: string;
+  badge?: string;
+  link: string;
+}
+
+export const collections: Collection[] = [
+  {
+    id: '1',
+    name: 'Duvet Covers - King, Queen & Single Sizes',
+    subTitle: 'View collection',
+    image: 'https://readdy.ai/api/search-image?query=Premium%20white%20duvet%20cover%20neatly%20folded%20on%20bed%20with%20soft%20pillows%20neutral%20tones%20elegant%20bedroom%20setting%20professional%20product%20photography%20soft%20natural%20lighting%20clean%20minimal%20background%20warm%20cream%20colors&width=200&height=200&seq=1&orientation=squarish',
+    link: '/collections/duvets',
+  },
+  {
+    id: '2',
+    name: 'Luxury Pillows - Memory Foam & Soft',
+    subTitle: 'View collection',
+    image: 'https://readdy.ai/api/search-image?query=Premium%20fluffy%20white%20pillows%20arranged%20on%20bed%20soft%20luxury%20bedding%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20warm%20tones%20elegant&width=200&height=200&seq=2&orientation=squarish',
+    link: '/collections/pillows',
+  },
+  {
+    id: '3',
+    name: 'Warm Blankets - Fleece, Wool & Cotton',
+    subTitle: 'View collection',
+    image: 'https://readdy.ai/api/search-image?query=Soft%20cozy%20blanket%20draped%20over%20armchair%20warm%20knitted%20texture%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20cream%20beige%20tones&width=200&height=200&seq=3&orientation=squarish',
+    link: '/collections/blankets',
+  },
+  {
+    id: '4',
+    name: 'Cotton Bedsheets - Fitted & Flat Sheets',
+    subTitle: 'View collection',
+    image: 'https://readdy.ai/api/search-image?query=Crisp%20white%20cotton%20bedsheet%20set%20neatly%20folded%20on%20clean%20surface%20professional%20product%20photography%20soft%20studio%20lighting%20minimal%20background%20elegant%20hotel%20quality&width=200&height=200&seq=4&orientation=squarish',
+    link: '/collections/bedsheets',
+  },
+  {
+    id: '5',
+    name: 'Complete Bedding Sets',
+    subTitle: 'View collection',
+    image: 'https://readdy.ai/api/search-image?query=Complete%20luxury%20bedding%20set%20with%20matching%20duvet%20cover%20pillowcases%20and%20bedsheet%20on%20beautifully%20made%20bed%20professional%20interior%20photography%20soft%20warm%20lighting%20elegant%20neutral%20tones&width=200&height=200&seq=5&orientation=squarish',
+    link: '/collections/bedding-sets',
+  },
+  {
+    id: '6',
+    name: 'Mattress Protectors & Toppers',
+    subTitle: 'View collection',
+    image: 'https://readdy.ai/api/search-image?query=White%20quilted%20mattress%20protector%20pad%20on%20clean%20mattress%20professional%20product%20photography%20soft%20studio%20lighting%20minimal%20background%20clean%20hygiene&width=200&height=200&seq=6&orientation=squarish',
+    link: '/collections/mattress-protectors',
+  },
+];
+
+export const trendingProducts: Product[] = [
+  {
+    id: 't1',
+    name: 'Premium 100% Cotton Duvet Cover Set - King Size, 3-Piece with Pillowcases, Soft & Breathable, White',
+    price: 4999,
+    originalPrice: 8500,
+    image: 'https://readdy.ai/api/search-image?query=White%20cotton%20duvet%20cover%20set%20with%20two%20matching%20pillowcases%20on%20bed%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20high%20quality%20linen&width=300&height=300&seq=10&orientation=squarish',
+    category: 'Duvet Covers',
+    badge: 'Hot Sale',
+    rating: 4.9,
+    reviews: 312,
+    colors: ['White', 'Beige', 'Grey', 'Navy'],
+    sizes: ['Single', 'Queen', 'King', 'Super King'],
+  },
+  {
+    id: 't2',
+    name: 'Luxury Memory Foam Pillow - Orthopedic Neck Support, Hypoallergenic, Standard Size for Kenyan Homes',
+    price: 2499,
+    originalPrice: 4500,
+    image: 'https://readdy.ai/api/search-image?query=White%20memory%20foam%20pillow%20with%20soft%20cotton%20cover%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20ergonomic%20design&width=300&height=300&seq=11&orientation=squarish',
+    category: 'Pillows',
+    badge: 'Best Seller',
+    rating: 4.7,
+    reviews: 198,
+  },
+  {
+    id: 't3',
+    name: 'Ultra Soft Fleece Blanket - Queen Size, Warm & Cozy, Machine Washable, Perfect for Cold Nights in Kenya',
+    price: 3499,
+    originalPrice: 5500,
+    image: 'https://readdy.ai/api/search-image?query=Soft%20fluffy%20fleece%20blanket%20in%20cream%20color%20draped%20neatly%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20warm%20cozy%20texture&width=300&height=300&seq=12&orientation=squarish',
+    category: 'Blankets',
+    badge: 'Sale',
+    rating: 4.6,
+    reviews: 156,
+    colors: ['Cream', 'Grey', 'Pink', 'Blue'],
+  },
+  {
+    id: 't4',
+    name: 'Egyptian Cotton Fitted Bedsheet - Deep Pocket, 400 Thread Count, Single Size, Crisp White',
+    price: 1999,
+    originalPrice: 3500,
+    image: 'https://readdy.ai/api/search-image?query=Crisp%20white%20fitted%20bedsheet%20on%20mattress%20corner%20showing%20deep%20pocket%20elastic%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20hotel%20quality&width=300&height=300&seq=13&orientation=squarish',
+    category: 'Bedsheets',
+    rating: 4.5,
+    reviews: 89,
+    sizes: ['Single', 'Double', 'Queen', 'King'],
+  },
+  {
+    id: 't5',
+    name: 'Complete 7-Piece Bedding Set - Duvet Cover, Fitted Sheet, Pillowcases & Cushion Covers, King Size, Grey',
+    price: 8999,
+    originalPrice: 14500,
+    image: 'https://readdy.ai/api/search-image?query=Complete%20grey%20bedding%20set%20with%20duvet%20cover%20fitted%20sheet%20and%20multiple%20pillowcases%20on%20made%20bed%20professional%20interior%20photography%20soft%20warm%20lighting%20elegant%20modern%20bedroom&width=300&height=300&seq=14&orientation=squarish',
+    category: 'Bedding Sets',
+    badge: 'New',
+    rating: 4.8,
+    reviews: 74,
+    colors: ['Grey', 'White', 'Beige'],
+  },
+];
+
+export const appliances: Product[] = [
+  {
+    id: 'a1',
+    name: 'Waterproof Mattress Protector - Quilted, Hypoallergenic, Fitted Style, Double Size, White',
+    price: 2499,
+    image: 'https://readdy.ai/api/search-image?query=White%20quilted%20waterproof%20mattress%20protector%20on%20clean%20bed%20professional%20product%20photography%20soft%20studio%20lighting%20minimal%20background%20hygiene%20protection&width=300&height=300&seq=20&orientation=squarish',
+    category: 'Mattress Protectors',
+    rating: 4.4,
+    reviews: 67,
+  },
+  {
+    id: 'a2',
+    name: 'Luxury Goose Down Duvet Inner - 13.5 Tog, Warm Winter Weight, King Size, Hotel Quality',
+    price: 12999,
+    originalPrice: 18999,
+    image: 'https://readdy.ai/api/search-image?query=Fluffy%20white%20goose%20down%20duvet%20inner%20comforter%20on%20bed%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20luxury%20hotel%20quality%20warm&width=300&height=300&seq=21&orientation=squarish',
+    category: 'Duvet Inners',
+    badge: 'Best Seller',
+    rating: 4.9,
+    reviews: 245,
+    sizes: ['Single', 'Double', 'Queen', 'King'],
+  },
+  {
+    id: 'a3',
+    name: 'Silk Pillowcase Set of 2 - Mulberry Silk, Anti-Aging, Hair-Friendly, Standard Size, Champagne Color',
+    price: 3499,
+    originalPrice: 5500,
+    image: 'https://readdy.ai/api/search-image?query=Two%20champagne%20colored%20silk%20pillowcases%20neatly%20arranged%20on%20white%20surface%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20luxury%20smooth%20texture&width=300&height=300&seq=22&orientation=squarish',
+    category: 'Pillowcases',
+    badge: 'New',
+    rating: 4.7,
+    reviews: 132,
+    colors: ['Champagne', 'White', 'Pink', 'Black'],
+  },
+  {
+    id: 'a4',
+    name: 'Weighted Blanket - 7kg, Gravity Therapy Blanket for Better Sleep, Anxiety Relief, Grey Cotton Cover',
+    price: 7999,
+    image: 'https://readdy.ai/api/search-image?query=Grey%20weighted%20blanket%20with%20quilted%20pattern%20on%20neatly%20made%20bed%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20therapeutic%20calm&width=300&height=300&seq=23&orientation=squarish',
+    category: 'Blankets',
+    rating: 4.6,
+    reviews: 91,
+    sizes: ['5kg', '7kg', '9kg'],
+  },
+  {
+    id: 'a5',
+    name: 'Bamboo Fiber Bedsheet Set - 4-Piece, Ultra Soft, Eco-Friendly, Queen Size, Sage Green',
+    price: 5999,
+    originalPrice: 9500,
+    image: 'https://readdy.ai/api/search-image?query=Sage%20green%20bamboo%20fiber%20bedsheet%20set%20with%20matching%20pillowcases%20on%20bed%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20eco%20friendly%20natural%20texture&width=300&height=300&seq=24&orientation=squarish',
+    category: 'Bedsheets',
+    rating: 4.5,
+    reviews: 58,
+    colors: ['Sage Green', 'White', 'Sky Blue'],
+  },
+];
+
+export const featuredProduct: Product = {
+  id: 'fp1',
+  name: 'Premium 100% Egyptian Cotton Duvet Cover Set - King Size, 3-Piece with 2 Pillowcases, 600 Thread Count, Soft & Breathable',
+  price: 6499,
+  originalPrice: 9999,
+  image: 'https://readdy.ai/api/search-image?query=Luxurious%20white%20egyptian%20cotton%20duvet%20cover%20set%20with%20two%20matching%20pillowcases%20on%20elegant%20king%20size%20bed%20professional%20product%20photography%20soft%20natural%20lighting%20high%20end%20hotel%20style%20clean%20crisp%20bedding&width=500&height=500&seq=30&orientation=squarish',
+  category: 'Duvet Covers',
+  badge: 'Hot Sale',
+  rating: 4.9,
+  reviews: 312,
+  colors: ['White', 'Ivory', 'Silver Grey', 'Soft Pink', 'Sage Green'],
+  sizes: ['Single', 'Double', 'Queen', 'King', 'Super King'],
+};
+
+export const offerBanners: OfferBanner[] = [
+  {
+    id: 'o1',
+    title: 'Winter Blanket Sale',
+    subtitle: 'Save up to 40%',
+    image: 'https://readdy.ai/api/search-image?query=Cozy%20warm%20bedroom%20with%20thick%20wool%20blankets%20and%20soft%20pillows%20on%20bed%20winter%20atmosphere%20professional%20lifestyle%20photography%20warm%20golden%20lighting%20inviting%20comfortable&width=600&height=400&seq=40&orientation=landscape',
+    badge: 'Save up to 40%',
+    link: '/collections/blankets',
+  },
+  {
+    id: 'o2',
+    title: 'Pillow Paradise',
+    subtitle: 'Buy 2 Get 1 Free',
+    image: 'https://readdy.ai/api/search-image?query=Stack%20of%20premium%20fluffy%20white%20and%20grey%20pillows%20on%20clean%20white%20background%20professional%20product%20photography%20soft%20studio%20lighting%20minimal%20style%20luxury%20bedding&width=280&height=200&seq=41&orientation=landscape',
+    badge: 'Buy 2 Get 1 Free',
+    link: '/collections/pillows',
+  },
+  {
+    id: 'o3',
+    title: 'Complete Bedding Sets',
+    subtitle: 'Offers on Full Sets',
+    image: 'https://readdy.ai/api/search-image?query=Beautifully%20made%20bed%20with%20complete%20matching%20bedding%20set%20duvet%20cover%20fitted%20sheet%20and%20pillowcases%20in%20soft%20neutral%20tones%20modern%20bedroom%20professional%20interior%20photography%20bright%20natural%20lighting&width=280&height=200&seq=42&orientation=landscape',
+    badge: 'Up to 35% Off',
+    link: '/collections/bedding-sets',
+  },
+  {
+    id: 'o4',
+    title: 'Shop New Duvet Covers',
+    subtitle: 'Fresh Styles Just In',
+    image: 'https://readdy.ai/api/search-image?query=Modern%20bedroom%20with%20stylish%20patterned%20duvet%20cover%20in%20soft%20colors%20fresh%20linens%20crisp%20bedding%20professional%20interior%20photography%20bright%20natural%20lighting%20contemporary%20design&width=600&height=200&seq=43&orientation=landscape',
+    link: '/collections/duvets',
+  },
+];
+
+export const discoverCategories: Category[] = [
+  {
+    id: 'd1',
+    name: 'Duvet Covers',
+    subcategories: ['Cotton Duvet Covers', 'Silk Duvet Covers', 'Linen Duvet Covers', 'Patterned Duvet Covers', 'Plain Duvet Covers'],
+    image: 'https://readdy.ai/api/search-image?query=Various%20duvet%20covers%20in%20different%20colors%20and%20textures%20displayed%20on%20hangers%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20textile%20collection&width=400&height=250&seq=50&orientation=landscape',
+  },
+  {
+    id: 'd2',
+    name: 'Pillows & Pillowcases',
+    subcategories: ['Memory Foam Pillows', 'Feather Pillows', 'Orthopedic Pillows', 'Silk Pillowcases', 'Cotton Pillowcases'],
+    image: 'https://readdy.ai/api/search-image?query=Collection%20of%20different%20pillows%20and%20pillowcases%20arranged%20neatly%20on%20white%20background%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20style%20bedding%20accessories&width=400&height=250&seq=51&orientation=landscape',
+  },
+  {
+    id: 'd3',
+    name: 'Blankets & Throws',
+    subcategories: ['Fleece Blankets', 'Wool Blankets', 'Weighted Blankets', 'Cotton Throws', 'Knitted Throws'],
+    image: 'https://readdy.ai/api/search-image?query=Collection%20of%20cozy%20blankets%20and%20throws%20in%20various%20textures%20and%20colors%20draped%20over%20furniture%20professional%20interior%20photography%20warm%20lighting%20comfortable%20home%20setting&width=400&height=250&seq=52&orientation=landscape',
+  },
+  {
+    id: 'd4',
+    name: 'Bedsheets & Bedding',
+    subcategories: ['Fitted Sheets', 'Flat Sheets', 'Sheet Sets', 'Bamboo Sheets', 'Egyptian Cotton Sheets'],
+    image: 'https://readdy.ai/api/search-image?query=Neatly%20folded%20bedsheets%20and%20bedding%20sets%20in%20various%20colors%20stacked%20on%20shelf%20professional%20product%20photography%20soft%20studio%20lighting%20clean%20minimal%20background%20organized%20retail%20display&width=400&height=250&seq=53&orientation=landscape',
+  },
+];
+
+export const marqueeItems = [
+  'Premium Duvet Covers & Bedding Sets',
+  'New Arrivals',
+  'Free Delivery on Orders Over KSh 5,000',
+  'Softest Pillows & Coziest Blankets',
+  'Shop Now - Pay Later',
+];
+</file>
+
+<file path="src/pages/cart/page.tsx">
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import TopBar from '@/components/feature/TopBar';
+import Navbar from '@/components/feature/Navbar';
+import Footer from '@/components/feature/Footer';
+
+interface CartItem {
+  product: {
+    id: string;
+    name: string;
+    price: number;
+    image: string;
+    category: string;
+  };
+  quantity: number;
+  selectedColor?: string;
+  selectedSize?: string;
+}
+
+export default function CartPage() {
+  const navigate = useNavigate();
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [updating, setUpdating] = useState(false);
+
+  const loadCart = () => {
+    try {
+      const raw = localStorage.getItem('duvet-covers-cart');
+      setItems(raw ? JSON.parse(raw) : []);
+    } catch {
+      setItems([]);
+    }
+  };
+
+  useEffect(() => {
+    loadCart();
+
+    const handler = () => {
+      loadCart();
+      setUpdating(false);
+    };
+    window.addEventListener('cartUpdated', handler);
+    return () => window.removeEventListener('cartUpdated', handler);
+  }, []);
+
+  const saveCart = (newItems: CartItem[]) => {
+    localStorage.setItem('duvet-covers-cart', JSON.stringify(newItems));
+    setItems(newItems);
+    window.dispatchEvent(new Event('cartUpdated'));
+  };
+
+  const updateQuantity = (index: number, delta: number) => {
+    const newItems = [...items];
+    newItems[index].quantity = Math.max(1, newItems[index].quantity + delta);
+    saveCart(newItems);
+  };
+
+  const removeItem = (index: number) => {
+    const newItems = items.filter((_, i) => i !== index);
+    saveCart(newItems);
+  };
+
+  const clearCart = () => {
+    saveCart([]);
+  };
+
+  const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const shipping = subtotal >= 5000 ? 0 : 500;
+  const total = subtotal + shipping;
+
+  return (
+    <div className="min-h-screen">
+      <TopBar />
+      <Navbar />
+
+      <div className="px-4 md:px-6 lg:px-10 py-6 max-w-7xl mx-auto">
+        {/* Breadcrumb */}
+        <div className="text-sm text-gray-400 mb-6 flex items-center gap-2">
+          <a href="/" className="hover:text-primary transition-colors">Home</a>
+          <i className="ri-arrow-right-s-line text-xs"></i>
+          <span className="text-gray-600">Shopping Cart</span>
+        </div>
+
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-8">Shopping Cart</h1>
+
+        {items.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-20 h-20 mx-auto flex items-center justify-center rounded-full bg-gray-100 mb-4">
+              <i className="ri-shopping-cart-line text-gray-300 text-3xl"></i>
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900">Your cart is empty</h2>
+            <p className="text-sm text-gray-500 mt-2">Looks like you have not added anything yet.</p>
+            <a
+              href="/"
+              className="inline-block mt-6 px-6 py-2.5 bg-primary text-white text-sm font-semibold rounded-md hover:bg-primary-dark transition-colors"
+            >
+              Continue Shopping
+            </a>
+          </div>
+        ) : (
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Cart Items */}
+            <div className="flex-1">
+              <div className="space-y-4">
+                {items.map((item, idx) => (
+                  <div key={`${item.product.id}-${item.selectedColor}-${item.selectedSize}`} className="flex gap-3 md:gap-4 p-3 md:p-4 bg-white border border-gray-100 rounded-lg">
+                    <div className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0 bg-gray-50 rounded-md overflow-hidden">
+                      <img src={item.product.image} alt={item.product.name} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs text-primary font-semibold">{item.product.category}</p>
+                          <a href={`/products/${item.product.id}`} className="text-sm font-medium text-gray-900 hover:text-primary transition-colors line-clamp-2 block">
+                            {item.product.name}
+                          </a>
+                          {item.selectedColor && (
+                            <p className="text-xs text-gray-500 mt-1">Color: {item.selectedColor}</p>
+                          )}
+                          {item.selectedSize && (
+                            <p className="text-xs text-gray-500">Size: {item.selectedSize}</p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(idx)}
+                          className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-gray-400 hover:text-red-500 flex-shrink-0"
+                          aria-label="Remove item"
+                        >
+                          <i className="ri-delete-bin-line text-sm md:text-base"></i>
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between mt-2 md:mt-3">
+                        <div className="flex items-center border border-gray-200 rounded-md">
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(idx, -1)}
+                            className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-gray-500 hover:bg-gray-50"
+                          >
+                            <i className="ri-subtract-line text-xs md:text-sm"></i>
+                          </button>
+                          <span className="w-8 md:w-10 text-center text-sm font-medium">{item.quantity}</span>
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(idx, 1)}
+                            className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-gray-500 hover:bg-gray-50"
+                          >
+                            <i className="ri-add-line text-xs md:text-sm"></i>
+                          </button>
+                        </div>
+                        <p className="text-sm md:text-base font-bold text-gray-900">
+                          KSh {(item.product.price * item.quantity).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-4 mt-6">
+                <a
+                  href="/"
+                  className="px-4 py-2 border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:border-primary hover:text-primary transition-colors flex items-center justify-center sm:justify-start gap-2"
+                >
+                  <i className="ri-arrow-left-line"></i>
+                  Continue Shopping
+                </a>
+                <button
+                  type="button"
+                  onClick={clearCart}
+                  className="px-4 py-2 border border-gray-200 rounded-md text-sm font-medium text-gray-500 hover:border-red-300 hover:text-red-500 transition-colors"
+                >
+                  Clear Cart
+                </button>
+              </div>
+            </div>
+
+            {/* Order Summary */}
+            <div className="lg:w-80 flex-shrink-0">
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between text-gray-600">
+                    <span>Subtotal ({items.reduce((s, i) => s + i.quantity, 0)} items)</span>
+                    <span>KSh {subtotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-gray-600">
+                    <span>Shipping</span>
+                    <span className={shipping === 0 ? 'text-green-600 font-medium' : ''}>
+                      {shipping === 0 ? 'FREE' : `KSh ${shipping.toLocaleString()}`}
+                    </span>
+                  </div>
+                  {shipping > 0 && (
+                    <p className="text-xs text-gray-400">Free delivery on orders over KSh 5,000</p>
+                  )}
+                  <div className="border-t border-gray-200 pt-3 flex items-center justify-between">
+                    <span className="text-base font-semibold text-gray-900">Total</span>
+                    <span className="text-xl font-bold text-primary">KSh {total.toLocaleString()}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="w-full mt-6 py-3 bg-primary text-white rounded-md text-sm font-semibold hover:bg-primary-dark transition-colors"
+                  onClick={() => alert('Checkout functionality coming soon!')}
+                >
+                  Proceed to Checkout
+                </button>
+                <div className="flex items-center justify-center gap-2 mt-4 text-xs text-gray-400">
+                  <i className="ri-secure-payment-line"></i>
+                  <span>Secure checkout with M-Pesa & Cards</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <Footer />
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/collections/page.tsx">
+import { useState, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
+import TopBar from '@/components/feature/TopBar';
+import Navbar from '@/components/feature/Navbar';
+import Footer from '@/components/feature/Footer';
+import ProductCard from '@/components/base/ProductCard';
+import { allProducts } from '@/mocks/allProducts';
+import type { Product } from '@/mocks/homeData';
+
+const categoryMap: Record<string, string> = {
+  duvets: 'Duvet Covers',
+  pillows: 'Pillows',
+  blankets: 'Blankets',
+  bedsheets: 'Bedsheets',
+  'bedding-sets': 'Bedding Sets',
+  'mattress-protectors': 'Mattress Protectors',
+  'duvet-inners': 'Duvet Inners',
+  pillowcases: 'Pillowcases',
+};
+
+const allCategories = Array.from(new Set(allProducts.map((p) => p.category)));
+
+export default function CollectionsPage() {
+  const { slug } = useParams<{ slug?: string }>();
+
+  const [sortBy, setSortBy] = useState('featured');
+  const [priceRange, setPriceRange] = useState('all');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const baseCategory = slug ? categoryMap[slug] : null;
+
+  const filteredProducts = useMemo(() => {
+    let result = [...allProducts];
+
+    if (baseCategory) {
+      result = result.filter((p) => p.category === baseCategory);
+    } else if (selectedCategories.length > 0) {
+      result = result.filter((p) => selectedCategories.includes(p.category));
+    }
+
+    if (priceRange === 'under3k') result = result.filter((p) => p.price < 3000);
+    if (priceRange === '3k-6k') result = result.filter((p) => p.price >= 3000 && p.price <= 6000);
+    if (priceRange === '6k-10k') result = result.filter((p) => p.price > 6000 && p.price <= 10000);
+    if (priceRange === 'over10k') result = result.filter((p) => p.price > 10000);
+
+    if (sortBy === 'price-low') result.sort((a, b) => a.price - b.price);
+    if (sortBy === 'price-high') result.sort((a, b) => b.price - a.price);
+    if (sortBy === 'rating') result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    if (sortBy === 'newest') {
+      const withBadge = result.filter((p) => p.badge === 'New');
+      const rest = result.filter((p) => p.badge !== 'New');
+      result = [...withBadge, ...rest];
+    }
+
+    return result;
+  }, [baseCategory, selectedCategories, priceRange, sortBy]);
+
+  const toggleCategory = (cat: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  };
+
+  const pageTitle = baseCategory || 'All Collections';
+  const pageSubtitle = baseCategory
+    ? `Explore our best ${baseCategory.toLowerCase()} in Kenya`
+    : 'Browse all our premium bedding collections';
+
+  return (
+    <div className="min-h-screen">
+      <TopBar />
+      <Navbar />
+
+      {/* Page Header */}
+      <div className="bg-gray-50 border-b border-gray-100">
+        <div className="px-4 md:px-6 lg:px-10 py-8 md:py-12 max-w-7xl mx-auto">
+          <div className="text-sm text-gray-400 mb-3 flex items-center gap-2">
+            <a href="/" className="hover:text-primary transition-colors">Home</a>
+            <i className="ri-arrow-right-s-line text-xs"></i>
+            <span className="text-gray-600">{pageTitle}</span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{pageTitle}</h1>
+          <p className="text-gray-500 mt-2 text-sm md:text-base">{pageSubtitle}</p>
+        </div>
+      </div>
+
+      <div className="px-4 md:px-6 lg:px-10 py-6 max-w-7xl mx-auto">
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+          <p className="text-sm text-gray-500">
+            Showing <span className="font-semibold text-gray-900">{filteredProducts.length}</span> products
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowFilters(!showFilters)}
+              className="sm:hidden flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-md text-sm font-medium hover:border-primary transition-colors"
+            >
+              <i className="ri-equalizer-line"></i>
+              Filters
+            </button>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:border-primary"
+            >
+              <option value="featured">Featured</option>
+              <option value="price-low">Price: Low to High</option>
+              <option value="price-high">Price: High to Low</option>
+              <option value="rating">Top Rated</option>
+              <option value="newest">Newest Arrivals</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar Filters */}
+          <aside className={`lg:w-64 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
+            <div className="space-y-6">
+              {/* Categories */}
+              {!baseCategory && (
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-3 text-sm">Categories</h3>
+                  <div className="space-y-2">
+                    {allCategories.map((cat) => (
+                      <label key={cat} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedCategories.includes(cat)}
+                          onChange={() => toggleCategory(cat)}
+                          className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <span className="text-sm text-gray-600">{cat}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Price Range */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3 text-sm">Price Range</h3>
+                <div className="space-y-2">
+                  {[
+                    { value: 'all', label: 'All Prices' },
+                    { value: 'under3k', label: 'Under KSh 3,000' },
+                    { value: '3k-6k', label: 'KSh 3,000 - 6,000' },
+                    { value: '6k-10k', label: 'KSh 6,000 - 10,000' },
+                    { value: 'over10k', label: 'Over KSh 10,000' },
+                  ].map((opt) => (
+                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="price"
+                        value={opt.value}
+                        checked={priceRange === opt.value}
+                        onChange={() => setPriceRange(opt.value)}
+                        className="w-4 h-4 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-gray-600">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          {/* Product Grid */}
+          <div className="flex-1">
+            {filteredProducts.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-16 h-16 mx-auto flex items-center justify-center rounded-full bg-gray-100 mb-4">
+                  <i className="ri-search-line text-gray-400 text-2xl"></i>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">No products found</h3>
+                <p className="text-sm text-gray-500 mt-1">Try adjusting your filters</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onAddToCart={(p: Product) => {
+                      window.dispatchEvent(
+                        new CustomEvent('addToCart', { detail: { product: p, quantity: 1 } })
+                      );
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Footer />
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/contact/page.tsx">
+import { useState } from 'react';
+import TopBar from '@/components/feature/TopBar';
+import Navbar from '@/components/feature/Navbar';
+import Footer from '@/components/feature/Footer';
+
+export default function ContactPage() {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    subject: '',
+    message: '',
+  });
+  const [submitted, setSubmitted] = useState(false);
+  const [charCount, setCharCount] = useState(0);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'message') setCharCount(value.length);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (charCount > 500) return;
+    setSubmitted(true);
+    setTimeout(() => {
+      setSubmitted(false);
+      setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+      setCharCount(0);
+    }, 3000);
+  };
+
+  return (
+    <div className="min-h-screen">
+      <TopBar />
+      <Navbar />
+
+      {/* Header */}
+      <div className="bg-gray-50 border-b border-gray-100">
+        <div className="px-4 md:px-6 lg:px-10 py-10 md:py-16 max-w-7xl mx-auto text-center">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Contact Us</h1>
+          <p className="text-gray-500 mt-3 max-w-xl mx-auto text-sm md:text-base">
+            Have questions about our bedding products? We are here to help you sleep better.
+          </p>
+        </div>
+      </div>
+
+      <div className="px-4 md:px-6 lg:px-10 py-10 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          {/* Contact Info */}
+          <div className="lg:col-span-1 space-y-8">
+            <div>
+              <div className="w-10 h-10 flex items-center justify-center rounded-full bg-primary/10 mb-3">
+                <i className="ri-phone-line text-primary text-lg"></i>
+              </div>
+              <h3 className="font-semibold text-gray-900">Phone</h3>
+              <p className="text-sm text-gray-500 mt-1">+254 712 345 678</p>
+              <p className="text-sm text-gray-500">Mon - Sat: 8am - 6pm EAT</p>
+            </div>
+
+            <div>
+              <div className="w-10 h-10 flex items-center justify-center rounded-full bg-primary/10 mb-3">
+                <i className="ri-mail-line text-primary text-lg"></i>
+              </div>
+              <h3 className="font-semibold text-gray-900">Email</h3>
+              <p className="text-sm text-gray-500 mt-1">info@duvetcoverskenya.co.ke</p>
+              <p className="text-sm text-gray-500">support@duvetcoverskenya.co.ke</p>
+            </div>
+
+            <div>
+              <div className="w-10 h-10 flex items-center justify-center rounded-full bg-primary/10 mb-3">
+                <i className="ri-map-pin-line text-primary text-lg"></i>
+              </div>
+              <h3 className="font-semibold text-gray-900">Showroom</h3>
+              <p className="text-sm text-gray-500 mt-1">Westgate Shopping Mall, 2nd Floor</p>
+              <p className="text-sm text-gray-500">Mwanzi Road, Westlands</p>
+              <p className="text-sm text-gray-500">Nairobi, Kenya</p>
+            </div>
+
+            <div>
+              <div className="w-10 h-10 flex items-center justify-center rounded-full bg-primary/10 mb-3">
+                <i className="ri-whatsapp-line text-primary text-lg"></i>
+              </div>
+              <h3 className="font-semibold text-gray-900">WhatsApp</h3>
+              <p className="text-sm text-gray-500 mt-1">+254 712 345 678</p>
+              <p className="text-sm text-gray-500">Quick replies during business hours</p>
+            </div>
+          </div>
+
+          {/* Form */}
+          <div className="lg:col-span-2">
+            <div className="bg-white border border-gray-100 rounded-lg p-4 md:p-6 lg:p-8">
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">Send us a message</h2>
+              <p className="text-sm text-gray-500 mb-6">Fill out the form below and we will get back to you within 24 hours.</p>
+
+              {submitted ? (
+                <div className="text-center py-10">
+                  <div className="w-16 h-16 mx-auto flex items-center justify-center rounded-full bg-green-50 mb-4">
+                    <i className="ri-check-line text-green-600 text-2xl"></i>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Message Sent!</h3>
+                  <p className="text-sm text-gray-500 mt-1">We will get back to you soon.</p>
+                </div>
+              ) : (
+                <form id="contact-form" data-readdy-form action="https://readdy.ai/api/form/d7virfvev6haf7a4lclg" method="POST" onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
+                    <div>
+                      <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
+                      <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        required
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-primary"
+                        placeholder="Your name"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        required
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-primary"
+                        placeholder="you@email.com"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
+                    <div>
+                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1.5">Phone Number</label>
+                      <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-primary"
+                        placeholder="+254 7XX XXX XXX"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1.5">Subject</label>
+                      <select
+                        id="subject"
+                        name="subject"
+                        value={formData.subject}
+                        onChange={handleChange}
+                        required
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-primary bg-white"
+                      >
+                        <option value="">Select a topic</option>
+                        <option value="product-inquiry">Product Inquiry</option>
+                        <option value="order-status">Order Status</option>
+                        <option value="returns">Returns & Refunds</option>
+                        <option value="wholesale">Wholesale / Bulk Orders</option>
+                        <option value="feedback">Feedback</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1.5">Message</label>
+                    <textarea
+                      id="message"
+                      name="message"
+                      value={formData.message}
+                      onChange={handleChange}
+                      required
+                      rows={4}
+                      maxLength={500}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-primary resize-none"
+                      placeholder="How can we help you?"
+                    />
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-gray-400">Max 500 characters</p>
+                      <p className={`text-xs ${charCount > 500 ? 'text-red-500' : 'text-gray-400'}`}>
+                        {charCount}/500
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={charCount > 500}
+                    className="w-full py-3 bg-primary text-white rounded-md text-sm font-semibold hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <i className="ri-send-plane-line"></i>
+                    Send Message
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Map */}
+      <div className="px-4 md:px-6 lg:px-10 max-w-7xl mx-auto pb-10">
+        <div className="rounded-lg overflow-hidden border border-gray-100 aspect-[21/9]">
+          <iframe
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3988.8523!2d36.8023!3d-1.2610!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f173c0a1f9c7b%3A0x5e1c6b5b5b5b5b5b!2sWestgate%20Shopping%20Mall!5e0!3m2!1sen!2ske!4v1600000000000!5m2!1sen!2ske"
+            width="100%"
+            height="100%"
+            style={{ border: 0 }}
+            allowFullScreen
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            title="Duvet Covers Kenya Showroom Location"
+          />
+        </div>
+      </div>
+
+      <Footer />
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/home/page.tsx">
+import TopBar from '@/components/feature/TopBar';
+import Navbar from '@/components/feature/Navbar';
+import HeroSection from '@/components/feature/HeroSection';
+import CollectionsSection from '@/components/feature/CollectionsSection';
+import MarqueeSection from '@/components/feature/MarqueeSection';
+import OffersSection from '@/components/feature/OffersSection';
+import TrendingSection from '@/components/feature/TrendingSection';
+import KitchenBanner from '@/components/feature/KitchenBanner';
+import DiscoverMore from '@/components/feature/DiscoverMore';
+import AppliancesSection from '@/components/feature/AppliancesSection';
+import FeaturedProduct from '@/components/feature/FeaturedProduct';
+import Footer from '@/components/feature/Footer';
+
+export default function Home() {
+  return (
+    <div className="min-h-screen">
+      <TopBar />
+      <Navbar />
+      <main>
+        <HeroSection />
+        <CollectionsSection />
+        <MarqueeSection />
+        <OffersSection />
+        <TrendingSection />
+        <KitchenBanner />
+        <DiscoverMore />
+        <AppliancesSection />
+        <FeaturedProduct />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/offers/page.tsx">
+import { useState, useMemo } from 'react';
+import TopBar from '@/components/feature/TopBar';
+import Navbar from '@/components/feature/Navbar';
+import Footer from '@/components/feature/Footer';
+import ProductCard from '@/components/base/ProductCard';
+import { allProducts } from '@/mocks/allProducts';
+import { trendingProducts, appliances } from '@/mocks/homeData';
+import type { Product } from '@/mocks/homeData';
+
+const everyProduct: Product[] = [...allProducts, ...trendingProducts, ...appliances];
+
+// Products with badges like 'Sale', 'Hot Sale', 'New' are considered "offers"
+const offerProducts = everyProduct.filter(
+  (p) => p.badge && ['Sale', 'Hot Sale', 'New', 'Best Seller', 'Popular', 'Premium'].includes(p.badge)
+);
+
+const allCategories = Array.from(new Set(offerProducts.map((p) => p.category)));
+
+export default function OffersPage() {
+  const [sortBy, setSortBy] = useState('featured');
+  const [priceRange, setPriceRange] = useState('all');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const filteredProducts = useMemo(() => {
+    let result = [...offerProducts];
+
+    if (selectedCategories.length > 0) {
+      result = result.filter((p) => selectedCategories.includes(p.category));
+    }
+
+    if (priceRange === 'under3k') result = result.filter((p) => p.price < 3000);
+    if (priceRange === '3k-6k') result = result.filter((p) => p.price >= 3000 && p.price <= 6000);
+    if (priceRange === '6k-10k') result = result.filter((p) => p.price > 6000 && p.price <= 10000);
+    if (priceRange === 'over10k') result = result.filter((p) => p.price > 10000);
+
+    if (sortBy === 'price-low') result.sort((a, b) => a.price - b.price);
+    if (sortBy === 'price-high') result.sort((a, b) => b.price - a.price);
+    if (sortBy === 'rating') result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    if (sortBy === 'newest') {
+      const withBadge = result.filter((p) => p.badge === 'New');
+      const rest = result.filter((p) => p.badge !== 'New');
+      result = [...withBadge, ...rest];
+    }
+
+    return result;
+  }, [selectedCategories, priceRange, sortBy]);
+
+  const toggleCategory = (cat: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  };
+
+  return (
+    <div className="min-h-screen">
+      <TopBar />
+      <Navbar />
+
+      {/* Page Header */}
+      <div className="bg-gray-50 border-b border-gray-100">
+        <div className="px-4 md:px-6 lg:px-10 py-8 md:py-12 max-w-7xl mx-auto">
+          <div className="text-sm text-gray-400 mb-3 flex items-center gap-2">
+            <a href="/" className="hover:text-primary transition-colors">Home</a>
+            <i className="ri-arrow-right-s-line text-xs"></i>
+            <span className="text-gray-600">Special Offers</span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Special Offers</h1>
+          <p className="text-gray-500 mt-2 text-sm md:text-base">Grab our best deals on premium bedding - sales, new arrivals, and bestsellers</p>
+        </div>
+      </div>
+
+      <div className="px-4 md:px-6 lg:px-10 py-6 max-w-7xl mx-auto">
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+          <p className="text-sm text-gray-500">
+            Showing <span className="font-semibold text-gray-900">{filteredProducts.length}</span> deals
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowFilters(!showFilters)}
+              className="sm:hidden flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-md text-sm font-medium hover:border-primary transition-colors"
+            >
+              <i className="ri-equalizer-line"></i>
+              Filters
+            </button>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:border-primary"
+            >
+              <option value="featured">Featured</option>
+              <option value="price-low">Price: Low to High</option>
+              <option value="price-high">Price: High to Low</option>
+              <option value="rating">Top Rated</option>
+              <option value="newest">Newest Arrivals</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar Filters */}
+          <aside className={`lg:w-64 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
+            <div className="space-y-6">
+              {/* Categories */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3 text-sm">Categories</h3>
+                <div className="space-y-2">
+                  {allCategories.map((cat) => (
+                    <label key={cat} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedCategories.includes(cat)}
+                        onChange={() => toggleCategory(cat)}
+                        className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-gray-600">{cat}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Price Range */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3 text-sm">Price Range</h3>
+                <div className="space-y-2">
+                  {[
+                    { value: 'all', label: 'All Prices' },
+                    { value: 'under3k', label: 'Under KSh 3,000' },
+                    { value: '3k-6k', label: 'KSh 3,000 - 6,000' },
+                    { value: '6k-10k', label: 'KSh 6,000 - 10,000' },
+                    { value: 'over10k', label: 'Over KSh 10,000' },
+                  ].map((opt) => (
+                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="price"
+                        value={opt.value}
+                        checked={priceRange === opt.value}
+                        onChange={() => setPriceRange(opt.value)}
+                        className="w-4 h-4 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-gray-600">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          {/* Product Grid */}
+          <div className="flex-1">
+            {filteredProducts.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-16 h-16 mx-auto flex items-center justify-center rounded-full bg-gray-100 mb-4">
+                  <i className="ri-search-line text-gray-400 text-2xl"></i>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">No deals found</h3>
+                <p className="text-sm text-gray-500 mt-1">Try adjusting your filters</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onAddToCart={(p: Product) => {
+                      window.dispatchEvent(
+                        new CustomEvent('addToCart', { detail: { product: p, quantity: 1 } })
+                      );
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Footer />
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/products/list/page.tsx">
+import { useState, useMemo } from 'react';
+import TopBar from '@/components/feature/TopBar';
+import Navbar from '@/components/feature/Navbar';
+import Footer from '@/components/feature/Footer';
+import ProductCard from '@/components/base/ProductCard';
+import { allProducts } from '@/mocks/allProducts';
+import { trendingProducts, appliances } from '@/mocks/homeData';
+import type { Product } from '@/mocks/homeData';
+
+const everyProduct: Product[] = [...allProducts, ...trendingProducts, ...appliances];
+
+const allCategories = Array.from(new Set(everyProduct.map((p) => p.category)));
+
+export default function AllProductsPage() {
+  const [sortBy, setSortBy] = useState('featured');
+  const [priceRange, setPriceRange] = useState('all');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const filteredProducts = useMemo(() => {
+    let result = [...everyProduct];
+
+    if (selectedCategories.length > 0) {
+      result = result.filter((p) => selectedCategories.includes(p.category));
+    }
+
+    if (priceRange === 'under3k') result = result.filter((p) => p.price < 3000);
+    if (priceRange === '3k-6k') result = result.filter((p) => p.price >= 3000 && p.price <= 6000);
+    if (priceRange === '6k-10k') result = result.filter((p) => p.price > 6000 && p.price <= 10000);
+    if (priceRange === 'over10k') result = result.filter((p) => p.price > 10000);
+
+    if (sortBy === 'price-low') result.sort((a, b) => a.price - b.price);
+    if (sortBy === 'price-high') result.sort((a, b) => b.price - a.price);
+    if (sortBy === 'rating') result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    if (sortBy === 'newest') {
+      const withBadge = result.filter((p) => p.badge === 'New');
+      const rest = result.filter((p) => p.badge !== 'New');
+      result = [...withBadge, ...rest];
+    }
+
+    return result;
+  }, [selectedCategories, priceRange, sortBy]);
+
+  const toggleCategory = (cat: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  };
+
+  return (
+    <div className="min-h-screen">
+      <TopBar />
+      <Navbar />
+
+      {/* Page Header */}
+      <div className="bg-gray-50 border-b border-gray-100">
+        <div className="px-4 md:px-6 lg:px-10 py-8 md:py-12 max-w-7xl mx-auto">
+          <div className="text-sm text-gray-400 mb-3 flex items-center gap-2">
+            <a href="/" className="hover:text-primary transition-colors">Home</a>
+            <i className="ri-arrow-right-s-line text-xs"></i>
+            <span className="text-gray-600">All Products</span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">All Products</h1>
+          <p className="text-gray-500 mt-2 text-sm md:text-base">Browse our entire collection of premium bedding essentials</p>
+        </div>
+      </div>
+
+      <div className="px-4 md:px-6 lg:px-10 py-6 max-w-7xl mx-auto">
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+          <p className="text-sm text-gray-500">
+            Showing <span className="font-semibold text-gray-900">{filteredProducts.length}</span> products
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowFilters(!showFilters)}
+              className="sm:hidden flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-md text-sm font-medium hover:border-primary transition-colors"
+            >
+              <i className="ri-equalizer-line"></i>
+              Filters
+            </button>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:border-primary"
+            >
+              <option value="featured">Featured</option>
+              <option value="price-low">Price: Low to High</option>
+              <option value="price-high">Price: High to Low</option>
+              <option value="rating">Top Rated</option>
+              <option value="newest">Newest Arrivals</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar Filters */}
+          <aside className={`lg:w-64 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
+            <div className="space-y-6">
+              {/* Categories */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3 text-sm">Categories</h3>
+                <div className="space-y-2">
+                  {allCategories.map((cat) => (
+                    <label key={cat} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedCategories.includes(cat)}
+                        onChange={() => toggleCategory(cat)}
+                        className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-gray-600">{cat}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Price Range */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3 text-sm">Price Range</h3>
+                <div className="space-y-2">
+                  {[
+                    { value: 'all', label: 'All Prices' },
+                    { value: 'under3k', label: 'Under KSh 3,000' },
+                    { value: '3k-6k', label: 'KSh 3,000 - 6,000' },
+                    { value: '6k-10k', label: 'KSh 6,000 - 10,000' },
+                    { value: 'over10k', label: 'Over KSh 10,000' },
+                  ].map((opt) => (
+                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="price"
+                        value={opt.value}
+                        checked={priceRange === opt.value}
+                        onChange={() => setPriceRange(opt.value)}
+                        className="w-4 h-4 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-gray-600">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          {/* Product Grid */}
+          <div className="flex-1">
+            {filteredProducts.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-16 h-16 mx-auto flex items-center justify-center rounded-full bg-gray-100 mb-4">
+                  <i className="ri-search-line text-gray-400 text-2xl"></i>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">No products found</h3>
+                <p className="text-sm text-gray-500 mt-1">Try adjusting your filters</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onAddToCart={(p: Product) => {
+                      window.dispatchEvent(
+                        new CustomEvent('addToCart', { detail: { product: p, quantity: 1 } })
+                      );
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Footer />
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/products/page.tsx">
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import TopBar from '@/components/feature/TopBar';
+import Navbar from '@/components/feature/Navbar';
+import Footer from '@/components/feature/Footer';
+import { allProducts } from '@/mocks/allProducts';
+import { featuredProduct, trendingProducts, appliances } from '@/mocks/homeData';
+
+const allItems = [...allProducts, featuredProduct, ...trendingProducts, ...appliances];
+
+export default function ProductDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const product = allItems.find((p) => p.id === id);
+
+  const [selectedColor, setSelectedColor] = useState<string | undefined>();
+  const [selectedSize, setSelectedSize] = useState<string | undefined>();
+  const [quantity, setQuantity] = useState(1);
+  const [added, setAdded] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
+
+  useEffect(() => {
+    if (product?.colors) setSelectedColor(product.colors[0]);
+    if (product?.sizes) setSelectedSize(product.sizes[0]);
+  }, [product]);
+
+  useEffect(() => {
+    const handler = () => {
+      const raw = localStorage.getItem('duvet-covers-cart');
+      const items = raw ? JSON.parse(raw) : [];
+      setCartCount(items.reduce((sum: number, item: { quantity: number }) => sum + item.quantity, 0));
+    };
+    handler();
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const raw = localStorage.getItem('duvet-covers-cart');
+      const items = raw ? JSON.parse(raw) : [];
+      setCartCount(items.reduce((sum: number, item: { quantity: number }) => sum + item.quantity, 0));
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!product) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4">
+        <div className="w-16 h-16 flex items-center justify-center rounded-full bg-gray-100 mb-4">
+          <i className="ri-error-warning-line text-gray-400 text-2xl"></i>
+        </div>
+        <h1 className="text-xl font-semibold text-gray-900">Product Not Found</h1>
+        <p className="text-sm text-gray-500 mt-2">The product you are looking for does not exist.</p>
+        <a href="/" className="mt-6 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-md hover:bg-primary-dark transition-colors">
+          Back to Home
+        </a>
+      </div>
+    );
+  }
+
+  const discount = product.originalPrice
+    ? Math.round((1 - product.price / product.originalPrice) * 100)
+    : 0;
+
+  const handleAddToCart = () => {
+    window.dispatchEvent(
+      new CustomEvent('addToCart', {
+        detail: { product, quantity, selectedColor, selectedSize },
+      })
+    );
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
+  };
+
+  const handleBuyNow = () => {
+    handleAddToCart();
+    navigate('/cart');
+  };
+
+  return (
+    <div className="min-h-screen">
+      <TopBar />
+      <Navbar />
+
+      <div className="px-4 md:px-6 lg:px-10 py-6 max-w-7xl mx-auto">
+        {/* Breadcrumb */}
+        <div className="text-sm text-gray-400 mb-6 flex items-center gap-2 flex-wrap">
+          <a href="/" className="hover:text-primary transition-colors">Home</a>
+          <i className="ri-arrow-right-s-line text-xs"></i>
+          <a href={`/collections/${product.category.toLowerCase().replace(/\s+/g, '-')}`} className="hover:text-primary transition-colors">
+            {product.category}
+          </a>
+          <i className="ri-arrow-right-s-line text-xs"></i>
+          <span className="text-gray-600 line-clamp-1">{product.name}</span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 lg:gap-12">
+          {/* Image */}
+          <div className="bg-gray-50 rounded-lg overflow-hidden aspect-square">
+            <img
+              src={product.image}
+              alt={product.name}
+              className="w-full h-full object-cover"
+            />
+          </div>
+
+          {/* Details */}
+          <div>
+            <p className="text-sm text-primary font-semibold">{product.category}</p>
+            <h1 className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 mt-1 leading-snug">{product.name}</h1>
+
+            {product.rating && (
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                <div className="flex items-center gap-0.5">
+                  {[...Array(5)].map((_, i) => (
+                    <span key={i} className={`text-sm ${i < Math.floor(product.rating!) ? 'text-accent-gold' : 'text-gray-300'}`}>
+                      {i < Math.floor(product.rating!) ? '\u2605' : '\u2606'}
+                    </span>
+                  ))}
+                </div>
+                <span className="text-sm text-gray-500">{product.rating} ({product.reviews} reviews)</span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3 mt-4 flex-wrap">
+              <span className="text-xl md:text-2xl lg:text-3xl font-bold text-primary">KSh {product.price.toLocaleString()}</span>
+              {product.originalPrice && (
+                <>
+                  <span className="text-base md:text-lg text-gray-400 line-through">KSh {product.originalPrice.toLocaleString()}</span>
+                  <span className="bg-accent-gold text-white text-xs font-bold px-2 py-1 rounded-sm">-{discount}%</span>
+                </>
+              )}
+            </div>
+
+            {/* Colors */}
+            {product.colors && product.colors.length > 0 && (
+              <div className="mt-5">
+                <p className="text-sm font-semibold text-gray-900 mb-2">
+                  Color: <span className="font-normal text-gray-500">{selectedColor}</span>
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {product.colors.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setSelectedColor(color)}
+                      className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                        selectedColor === color
+                          ? 'border-primary bg-primary/5 text-primary font-medium'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      {color}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sizes */}
+            {product.sizes && product.sizes.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm font-semibold text-gray-900 mb-2">
+                  Size: <span className="font-normal text-gray-500">{selectedSize}</span>
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {product.sizes.map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => setSelectedSize(size)}
+                      className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                        selectedSize === size
+                          ? 'border-primary bg-primary/5 text-primary font-medium'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Quantity */}
+            <div className="mt-5">
+              <p className="text-sm font-semibold text-gray-900 mb-2">Quantity</p>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center border border-gray-200 rounded-md w-fit">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-50"
+                  >
+                    <i className="ri-subtract-line"></i>
+                  </button>
+                  <span className="w-12 text-center text-sm font-medium">{quantity}</span>
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-50"
+                  >
+                    <i className="ri-add-line"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col gap-3 mt-6">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  className={`flex-1 py-3 rounded-md text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
+                    added
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-900 text-white hover:bg-primary'
+                  }`}
+                >
+                  <i className={`${added ? 'ri-check-line' : 'ri-shopping-cart-line'} text-base`}></i>
+                  {added ? 'Added to Cart!' : 'Add to Cart'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBuyNow}
+                  className="flex-1 py-3 bg-primary text-white rounded-md text-sm font-semibold hover:bg-primary-dark transition-colors flex items-center justify-center gap-2"
+                >
+                  <i className="ri-flashlight-line text-base"></i>
+                  Buy Now
+                </button>
+              </div>
+            </div>
+
+            {/* Trust badges */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 mt-6 md:mt-8 py-4 md:py-6 border-t border-gray-100">
+              {[
+                { icon: 'ri-truck-line', label: 'Free Delivery', sub: 'Orders over KSh 5,000' },
+                { icon: 'ri-shield-check-line', label: '1 Year Warranty', sub: 'On all products' },
+                { icon: 'ri-refresh-line', label: 'Easy Returns', sub: '30 day policy' },
+                { icon: 'ri-secure-payment-line', label: 'Secure Payment', sub: 'M-Pesa & Cards' },
+              ].map((badge) => (
+                <div key={badge.label} className="text-center">
+                  <div className="w-8 h-8 md:w-10 md:h-10 mx-auto flex items-center justify-center">
+                    <i className={`${badge.icon} text-primary text-lg md:text-xl`}></i>
+                  </div>
+                  <p className="text-[11px] md:text-xs font-semibold text-gray-900 mt-1">{badge.label}</p>
+                  <p className="text-[10px] text-gray-400">{badge.sub}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Footer />
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/NotFound.tsx">
+import { useLocation } from "react-router-dom";
+
+export default function NotFound() {
+  const location = useLocation();
+
+  return (
+    <div className="relative flex flex-col items-center justify-center h-screen text-center px-4">
+      <h1 className="absolute bottom-0 text-9xl md:text-[12rem] font-black text-gray-50 select-none pointer-events-none z-0">
+        404
+      </h1>
+      <div className="relative z-10">
+        <div className="w-16 h-16 flex items-center justify-center mb-4">
+          <i className="ri-hotel-bed-line text-primary text-4xl"></i>
+        </div>
+        <h1 className="text-xl md:text-2xl font-semibold mt-6">This page has not been generated</h1>
+        <p className="mt-2 text-base text-gray-400 font-mono">{location.pathname}</p>
+        <p className="mt-4 text-lg md:text-xl text-gray-500">Tell me more about this page, so I can generate it</p>
+        <a href="/" className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-md hover:bg-primary-dark transition-colors">
+          <i className="ri-arrow-left-line text-sm"></i>
+          Back to Home
+        </a>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/router/config.tsx">
+import type { RouteObject } from "react-router-dom";
+import NotFound from "../pages/NotFound";
+import Home from "../pages/home/page";
+import CollectionsPage from "../pages/collections/page";
+import ProductDetailPage from "../pages/products/page";
+import AllProductsPage from "../pages/products/list/page";
+import OffersPage from "../pages/offers/page";
+import CartPage from "../pages/cart/page";
+import ContactPage from "../pages/contact/page";
+
+const routes: RouteObject[] = [
+  {
+    path: "/",
+    element: <Home />,
+  },
+  {
+    path: "/collections/:slug",
+    element: <CollectionsPage />,
+  },
+  {
+    path: "/collections",
+    element: <CollectionsPage />,
+  },
+  {
+    path: "/products",
+    element: <AllProductsPage />,
+  },
+  {
+    path: "/products/:id",
+    element: <ProductDetailPage />,
+  },
+  {
+    path: "/offers",
+    element: <OffersPage />,
+  },
+  {
+    path: "/cart",
+    element: <CartPage />,
+  },
+  {
+    path: "/contact",
+    element: <ContactPage />,
+  },
+  {
+    path: "*",
+    element: <NotFound />,
+  },
+];
+
+export default routes;
+</file>
+
+<file path="src/router/index.ts">
+import { useNavigate, type NavigateFunction } from "react-router-dom";
+import { useRoutes } from "react-router-dom";
+import { useEffect } from "react";
+import routes from "./config";
+
+let navigateResolver: (navigate: ReturnType<typeof useNavigate>) => void;
+
+declare global {
+  interface Window {
+    REACT_APP_NAVIGATE: ReturnType<typeof useNavigate>;
+  }
+}
+
+export const navigatePromise = new Promise<NavigateFunction>((resolve) => {
+  navigateResolver = resolve;
+});
+
+export function AppRoutes() {
+  const element = useRoutes(routes);
+  const navigate = useNavigate();
+  useEffect(() => {
+    window.REACT_APP_NAVIGATE = navigate;
+    navigateResolver(window.REACT_APP_NAVIGATE);
+  });
+  return element;
+}
+</file>
+
+<file path="src/App.tsx">
+// ... existing code ...
+import { BrowserRouter, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { AppRoutes } from "./router";
+import { I18nextProvider } from "react-i18next";
+import i18n from "./i18n";
+import CartProvider from "./components/feature/CartProvider";
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [pathname]);
+  return null;
+}
+
+function App() {
+  return (
+    <I18nextProvider i18n={i18n}>
+      <BrowserRouter basename={__BASE_PATH__}>
+        <CartProvider>
+          <ScrollToTop />
+          <AppRoutes />
+        </CartProvider>
+      </BrowserRouter>
+    </I18nextProvider>
+  );
+}
+
+export default App;
+</file>
+
+<file path="src/index.css">
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    overflow-x: hidden;
+  }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    @apply text-gray-900 bg-white;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .animate-marquee {
+    animation: marquee 25s linear infinite;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-33.33%);
+  }
+}
+</file>
+
+<file path="src/main.tsx">
+import { StrictMode } from 'react'
+import './i18n'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+</file>
+
+<file path="auto-imports.d.ts">
+/* eslint-disable */
+/* prettier-ignore */
+// @ts-nocheck
+// noinspection JSUnusedGlobalSymbols
+// Generated by unplugin-auto-import
+// biome-ignore lint: disable
+export {}
+declare global {
+  const Link: typeof import('react-router-dom')['Link']
+  const NavLink: typeof import('react-router-dom')['NavLink']
+  const Navigate: typeof import('react-router-dom')['Navigate']
+  const Outlet: typeof import('react-router-dom')['Outlet']
+  const React: typeof import('react')['default']
+  const Trans: typeof import('react-i18next')['Trans']
+  const cloneElement: typeof import('react')['cloneElement']
+  const createContext: typeof import('react')['createContext']
+  const createElement: typeof import('react')['createElement']
+  const forwardRef: typeof import('react')['forwardRef']
+  const isValidElement: typeof import('react')['isValidElement']
+  const lazy: typeof import('react')['lazy']
+  const memo: typeof import('react')['memo']
+  const startTransition: typeof import('react')['startTransition']
+  const useCallback: typeof import('react')['useCallback']
+  const useContext: typeof import('react')['useContext']
+  const useDebugValue: typeof import('react')['useDebugValue']
+  const useDeferredValue: typeof import('react')['useDeferredValue']
+  const useEffect: typeof import('react')['useEffect']
+  const useId: typeof import('react')['useId']
+  const useImperativeHandle: typeof import('react')['useImperativeHandle']
+  const useInsertionEffect: typeof import('react')['useInsertionEffect']
+  const useLayoutEffect: typeof import('react')['useLayoutEffect']
+  const useLocation: typeof import('react-router-dom')['useLocation']
+  const useMemo: typeof import('react')['useMemo']
+  const useNavigate: typeof import('react-router-dom')['useNavigate']
+  const useParams: typeof import('react-router-dom')['useParams']
+  const useReducer: typeof import('react')['useReducer']
+  const useRef: typeof import('react')['useRef']
+  const useSearchParams: typeof import('react-router-dom')['useSearchParams']
+  const useState: typeof import('react')['useState']
+  const useSyncExternalStore: typeof import('react')['useSyncExternalStore']
+  const useTransition: typeof import('react')['useTransition']
+  const useTranslation: typeof import('react-i18next')['useTranslation']
+}
+</file>
+
+<file path="eslint.config.ts">
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import tseslint from 'typescript-eslint'
+import routeElementPlugin from './eslint-rules/route-element-jsx.js'
+
+const autoImportGlobals = {
+  // React
+  React: 'readonly',
+  useState: 'readonly',
+  useEffect: 'readonly',
+  useContext: 'readonly',
+  useReducer: 'readonly',
+  useCallback: 'readonly',
+  useMemo: 'readonly',
+  useRef: 'readonly',
+  useImperativeHandle: 'readonly',
+  useLayoutEffect: 'readonly',
+  useDebugValue: 'readonly',
+  useDeferredValue: 'readonly',
+  useId: 'readonly',
+  useInsertionEffect: 'readonly',
+  useSyncExternalStore: 'readonly',
+  useTransition: 'readonly',
+  startTransition: 'readonly',
+  lazy: 'readonly',
+  memo: 'readonly',
+  forwardRef: 'readonly',
+  createContext: 'readonly',
+  createElement: 'readonly',
+  cloneElement: 'readonly',
+  isValidElement: 'readonly',
+  // React Router
+  useNavigate: 'readonly',
+  useLocation: 'readonly',
+  useParams: 'readonly',
+  useSearchParams: 'readonly',
+  Link: 'readonly',
+  NavLink: 'readonly',
+  Navigate: 'readonly',
+  Outlet: 'readonly',
+  // React i18n
+  useTranslation: 'readonly',
+  Trans: 'readonly',
+}
+
+export default [
+  { ignores: ['dist', 'node_modules'] },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: {
+        ...globals.browser,
+        ...autoImportGlobals,
+        NodeJS: 'readonly',
+        JSX: 'readonly',
+        IdleRequestCallback: 'readonly',
+        __BASE_PATH__: 'readonly',
+        __IS_PREVIEW__: 'readonly',
+        __READDY_PROJECT_ID__: 'readonly',
+        __READDY_VERSION_ID__: 'readonly',
+        __READDY_AI_DOMAIN__: 'readonly',
+      },
+    },
+    plugins: {
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
+    },
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true },
+      ],
+      '@typescript-eslint/no-namespace': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      'no-unused-vars': 'off',
+      'no-useless-escape': 'off',
+      'prefer-const': 'off',
+      'prefer-rest-params': 'off',
+      'prefer-spread': 'off',
+      'no-unused-expressions': 'off',
+      'no-case-declarations': 'off',
+      '@typescript-eslint/no-unused-expressions': 'off',
+      'no-useless-catch': 'off',
+      'no-irregular-whitespace': 'off',
+      'no-undef': 'error',
+    },
+  },
+  // Only enforce this rule for the router config file to avoid false positives elsewhere.
+  {
+    files: ['src/router/config.tsx'],
+    plugins: {
+      'local-route': routeElementPlugin,
+    },
+    rules: {
+      'local-route/route-element-jsx': 'error',
+    },
+  },
+]
+</file>
+
+<file path="index.html">
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Duvet Covers Kenya - Premium Duvets, Pillows, Blankets & Bedsheets</title>
+    <meta name="description" content="Shop premium duvet covers, pillows, blankets, bedsheets and bedding sets in Kenya. Quality bedroom essentials with nationwide delivery. Best bedding store in Kenya." />
+    <meta name="keywords" content="duvet covers, pillows, blankets, bedsheets, bedding sets, mattress protectors, Kenya, bedroom essentials, linen" />
+    <meta property="og:title" content="Duvet Covers Kenya - Premium Duvets, Pillows, Blankets & Bedsheets" />
+    <meta property="og:description" content="Shop premium duvet covers, pillows, blankets, bedsheets and bedding sets in Kenya. Quality bedroom essentials with nationwide delivery." />
+    <meta property="og:type" content="website" />
+    <meta name="geo.position" content="-1.2921;36.8219" />
+    <meta name="geo.region" content="KE" />
+    <meta name="geo.placename" content="Nairobi, Kenya" />
+    <link rel="canonical" href="https://www.homeluxkenya.com/" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Pacifico&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+</file>
+
+<file path="package.json">
+{
+  "name": "react",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "type-check": "tsc --noEmit --project tsconfig.app.json"
+  },
+  "dependencies": {
+    "i18next": "^25.3.2",
+    "react": "^19.1.2",
+    "react-dom": "^19.1.2",
+    "react-i18next": "^15.6.0",
+    "react-router-dom": "^7.6.3",
+    "i18next-browser-languagedetector": "^8.2.0",
+    "firebase": "12.0.0",
+    "@supabase/supabase-js": "2.57.4",
+    "@stripe/react-stripe-js": "4.0.2",
+    "recharts": "3.2.0",
+    "lucide-react": "^0.469.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.1",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^6.0.1",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.30.1",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.3.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.35.1",
+    "vite": "^8.0.1",
+    "unplugin-auto-import": "^19.3.0",
+    "source-map": "^0.7.6",
+    "jiti": "^2.6.1"
+  }
+}
+</file>
+
+<file path="postcss.config.ts">
+export default {
+    plugins: {
+      tailwindcss: {},
+      autoprefixer: {},
+    }
+  }
+</file>
+
+<file path="project_plan.md">
+# Duvet Covers Kenya - Premium Bedding & Linens
+
+## 1. Project Description
+Duvet Covers Kenya is an e-commerce website selling premium duvet covers, pillows, blankets, bedsheets, bedding sets and mattress protectors. Target customers are Kenyan households looking for quality bedroom essentials with nationwide delivery. The brand emphasizes soft, durable, and elegant bedding that transforms bedrooms into cozy sanctuaries.
+
+## 2. Page Structure
+- `/` - Home (main landing page with hero, collections, products, promotions)
+- `/products` - Product Listing Page
+- `/product/:id` - Product Detail Page
+- `/collections` - Collections/Category Page
+- `/blog` - Blog/Guides Page
+- `/contact` - Contact & Support Page
+- `*` - 404 Not Found
+
+## 3. Core Features
+- [x] Hero banner with room/category search
+- [x] Product collections carousel
+- [x] Top offers and promotions showcase
+- [x] Trending products grid
+- [x] Category discovery sections
+- [x] Product detail preview
+- [x] Blog/Guides section
+- [x] Newsletter subscription
+- [x] Responsive navigation with mobile menu
+- [x] Shopping cart icon
+- [x] Footer with contact info and links
+
+## 4. Data Model Design
+(Will use mock data initially. No Supabase connected yet.)
+
+## 5. Backend / Third-party Integration Plan
+- Supabase: **Not connected yet** - Will be needed for user auth, product database, and orders when ready
+- Shopify: **Not connected yet** - Will be needed for product catalog and checkout integration
+- Stripe: **Not connected yet** - Will be needed for payment processing
+
+## 6. Development Phase Plan
+
+### Phase 1: Home Page Foundation
+- [x] Build the complete home page with all major sections
+- [x] Update brand from HomeLux to Duvet Covers Kenya
+- [x] Change product focus from kitchenware to bedding/linens
+- [x] Update all product mock data for duvets, pillows, blankets, bedsheets
+
+### Phase 2: Product Pages
+- Goal: Create product listing and product detail pages
+- Deliverable: `/products` and `/product/:id` pages with realistic data
+
+### Phase 3: Connect Backend
+- Goal: Integrate Supabase for data, then Shopify for products
+- Deliverable: Real product data flowing from backend
+
+### Phase 4: Cart & Checkout
+- Goal: Shopping cart functionality and checkout flow
+- Deliverable: Working cart with add/remove and checkout process
+</file>
+
+<file path="tailwind.config.ts">
+export default {
+    content: [
+      "./index.html",
+      "./src/**/*.{js,ts,jsx,tsx}",
+    ],
+    theme: {
+      extend: {
+        colors: {
+          primary: {
+            DEFAULT: '#C41E3A',
+            dark: '#A01830',
+            light: '#E84560',
+          },
+          accent: {
+            gold: '#D4A017',
+            dark: '#1A1A1A',
+            gray: '#F5F5F5',
+            border: '#E5E5E5',
+          },
+        },
+        fontFamily: {
+          sans: ['Inter', 'system-ui', 'sans-serif'],
+        },
+      },
+    },
+    plugins: [],
+  }
+</file>
+
+<file path="tsconfig.app.json">
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": false,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
+    "strictBindCallApply": false,
+    "strictPropertyInitialization": false,
+    "noImplicitThis": false,
+    "useUnknownInCatchVariables": false,
+    "alwaysStrict": false,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": false,
+    "noUncheckedSideEffectImports": false,
+    "paths": {
+      "@/*": ["./src/*"],
+    }
+  },
+  "include": ["src", "vite-env.d.ts"]
+}
+</file>
+
+<file path="tsconfig.json">
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+</file>
+
+<file path="tsconfig.node.json">
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["vite.config.ts"]
+}
+</file>
+
+<file path="vite-env.d.ts">
+/// <reference types="vite/client" />
+
+declare const __BASE_PATH__: string;
+declare const __IS_PREVIEW__: boolean;
+declare const __READDY_PROJECT_ID__: string;
+declare const __READDY_VERSION_ID__: string;
+declare const __READDY_AI_DOMAIN__: string;
+</file>
+
+<file path="vite.config.ts">
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { resolve } from "node:path";
+import AutoImport from "unplugin-auto-import/vite";
+// import { readdyJsxRuntimeProxyPlugin } from "./vite.jsx-runtime-proxy";
+
+const base = process.env.BASE_PATH || "/";
+const isPreview = process.env.IS_PREVIEW ? true : false;
+//const proxyPlugins = isPreview ? [readdyJsxRuntimeProxyPlugin()] : [];
+// https://vite.dev/config/
+export default defineConfig({
+  define: {
+    __BASE_PATH__: JSON.stringify(base),
+    __IS_PREVIEW__: JSON.stringify(isPreview),
+    __READDY_PROJECT_ID__: JSON.stringify(process.env.PROJECT_ID || ""),
+    __READDY_VERSION_ID__: JSON.stringify(process.env.VERSION_ID || ""),
+    __READDY_AI_DOMAIN__: JSON.stringify(process.env.READDY_AI_DOMAIN || ""),
+  },
+  plugins: [
+    // ...proxyPlugins,
+    react(),
+    AutoImport({
+      imports: [
+        {
+          react: [
+            ["default", "React"],
+            "useState",
+            "useEffect",
+            "useContext",
+            "useReducer",
+            "useCallback",
+            "useMemo",
+            "useRef",
+            "useImperativeHandle",
+            "useLayoutEffect",
+            "useDebugValue",
+            "useDeferredValue",
+            "useId",
+            "useInsertionEffect",
+            "useSyncExternalStore",
+            "useTransition",
+            "startTransition",
+            "lazy",
+            "memo",
+            "forwardRef",
+            "createContext",
+            "createElement",
+            "cloneElement",
+            "isValidElement",
+          ],
+        },
+        {
+          "react-router-dom": [
+            "useNavigate",
+            "useLocation",
+            "useParams",
+            "useSearchParams",
+            "Link",
+            "NavLink",
+            "Navigate",
+            "Outlet",
+          ],
+        },
+        // React i18n
+        {
+          "react-i18next": ["useTranslation", "Trans"],
+        },
+      ],
+      dts: true,
+    }),
+  ],
+  base,
+  build: {
+    sourcemap: true,
+    outDir: 'out',
+  },
+  resolve: {
+    alias: {
+      "@": resolve(__dirname, "./src"),
+    },
+  },
+  server: {
+    port: 3000,
+    host: "0.0.0.0",
+  },
+});
+</file>
+
+</files>
